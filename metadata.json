@@ -1,0 +1,6 @@
+{
+  "name": "S1 TENDO PRO - Free Fire Tournament Esports",
+  "description": "Professional Free Fire tournament platform with bKash/Nagad wallet, custom rooms, live match slots, and secure admin panel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

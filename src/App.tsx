@@ -1,0 +1,273 @@
+import React, { useState, useEffect } from 'react';
+import { StorageService, subscribeToStorage } from './services/storage';
+import { AppConfig, Tournament, Transaction, UserAccount } from './types';
+import { SplashLoader } from './components/SplashLoader';
+import { Header } from './components/Header';
+import { BottomNav, TabType } from './components/BottomNav';
+import { PlayScreen } from './components/PlayScreen';
+import { MyMatchesScreen } from './components/MyMatchesScreen';
+import { ResultsScreen } from './components/ResultsScreen';
+import { ProfileScreen } from './components/ProfileScreen';
+import { AuthModal } from './components/AuthModal';
+import { WalletModal } from './components/WalletModal';
+import { TournamentDetailsModal } from './components/TournamentDetailsModal';
+import { TransactionHistoryModal } from './components/TransactionHistoryModal';
+import { RulesModal } from './components/RulesModal';
+import { TopPlayersModal } from './components/TopPlayersModal';
+import { MyProfileModal } from './components/MyProfileModal';
+import { SupportModal } from './components/SupportModal';
+import { AdminSecurityGate } from './components/AdminSecurityGate';
+import { AdminPanel } from './components/AdminPanel';
+import { Lock } from 'lucide-react';
+
+export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
+  const [currentTab, setCurrentTab] = useState<TabType>('play');
+  const [darkMode, setDarkMode] = useState<boolean>(StorageService.getDarkMode());
+
+  // Core Data
+  const [config, setConfig] = useState<AppConfig>(StorageService.getConfig());
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(StorageService.getCurrentUser());
+  const [tournaments, setTournaments] = useState<Tournament[]>(StorageService.getTournaments());
+  const [transactions, setTransactions] = useState<Transaction[]>(StorageService.getTransactions());
+  const [users, setUsers] = useState<UserAccount[]>(StorageService.getAllUsers());
+
+  // Modals
+  const [authOpen, setAuthOpen] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(false);
+  const [walletTab, setWalletTab] = useState<'add_money' | 'withdraw'>('add_money');
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [topPlayersOpen, setTopPlayersOpen] = useState(false);
+  const [myProfileOpen, setMyProfileOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [detailsTournament, setDetailsTournament] = useState<Tournament | null>(null);
+
+  // Stealth Admin
+  const [adminGateOpen, setAdminGateOpen] = useState(false);
+  const [adminPanelOpen, setAdminPanelOpen] = useState(false);
+
+  // Sync with storage updates
+  useEffect(() => {
+    const unsubscribe = subscribeToStorage(() => {
+      setConfig(StorageService.getConfig());
+      setCurrentUser(StorageService.getCurrentUser());
+      setTournaments(StorageService.getTournaments());
+      setTransactions(StorageService.getTransactions());
+      setUsers(StorageService.getAllUsers());
+      setDarkMode(StorageService.getDarkMode());
+    });
+    return unsubscribe;
+  }, []);
+
+  // Support stealth URL hash trigger: e.g. #admin
+  useEffect(() => {
+    const handleHash = () => {
+      if (window.location.hash.toLowerCase() === '#admin' || window.location.hash.toLowerCase() === '#s1admin') {
+        setAdminGateOpen(true);
+        window.history.replaceState(null, '', window.location.pathname);
+      }
+    };
+    handleHash();
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+
+  // Update HTML class for dark mode
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+
+  const handleToggleDarkMode = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    StorageService.setDarkMode(next);
+  };
+
+  const handleOpenWalletWithTab = (tab: 'add_money' | 'withdraw') => {
+    setWalletTab(tab);
+    setWalletOpen(true);
+  };
+
+  const handleTabChange = (tab: TabType) => {
+    setCurrentTab(tab);
+  };
+
+  return (
+    <div className={`min-h-screen bg-gray-100 dark:bg-slate-950 text-gray-900 dark:text-gray-100 transition-colors flex justify-center selection:bg-indigo-500 selection:text-white`}>
+      {/* Mobile Shell Frame */}
+      <div className="w-full max-w-md min-h-screen bg-[#f8fafc] dark:bg-[#0c1017] shadow-2xl relative flex flex-col border-x border-gray-200/50 dark:border-slate-800/60 overflow-x-hidden">
+        {/* Splash Loader Screen matching Screenshot 3 */}
+        {showSplash ? (
+          <SplashLoader
+            config={config}
+            onFinish={() => {
+              setShowSplash(false);
+              if (!currentUser) {
+                setAuthOpen(true);
+              }
+            }}
+          />
+        ) : (
+          <>
+            {/* Main Header matching Screenshot 1 */}
+            <Header
+              user={currentUser}
+              config={config}
+              darkMode={darkMode}
+              onToggleDarkMode={handleToggleDarkMode}
+              onOpenWallet={() => handleOpenWalletWithTab('add_money')}
+              onOpenNotifications={() => setSupportOpen(true)}
+              onOpenAdminAuth={() => setAdminGateOpen(true)}
+            />
+
+            {/* Main Screen Content by Tab */}
+            <main className="flex-1 overflow-y-auto">
+              {currentTab === 'play' && (
+                <PlayScreen
+                  tournaments={tournaments}
+                  currentUser={currentUser}
+                  config={config}
+                  onSelectTournament={(t) => setDetailsTournament(t)}
+                  onOpenSupport={() => setSupportOpen(true)}
+                />
+              )}
+
+              {currentTab === 'my-matches' && (
+                <MyMatchesScreen
+                  tournaments={tournaments}
+                  currentUser={currentUser}
+                  onBrowseMatches={() => setCurrentTab('play')}
+                  onNeedAuth={() => setAuthOpen(true)}
+                />
+              )}
+
+              {currentTab === 'results' && (
+                <ResultsScreen tournaments={tournaments} />
+              )}
+
+              {currentTab === 'profile' && (
+                <ProfileScreen
+                  currentUser={currentUser}
+                  config={config}
+                  onOpenWallet={() => handleOpenWalletWithTab('add_money')}
+                  onOpenWithdraw={() => handleOpenWalletWithTab('withdraw')}
+                  onOpenHistory={() => setHistoryOpen(true)}
+                  onOpenMyProfile={() => setMyProfileOpen(true)}
+                  onOpenRules={() => setRulesOpen(true)}
+                  onOpenTopPlayers={() => setTopPlayersOpen(true)}
+                  onOpenAdminAuth={() => setAdminGateOpen(true)}
+                  onLogout={() => {
+                    StorageService.logout();
+                    setAuthOpen(true);
+                  }}
+                  onNeedAuth={() => setAuthOpen(true)}
+                />
+              )}
+            </main>
+
+            {/* Bottom Navigation matching Screenshot 1 & Floating Mascot */}
+            <BottomNav
+              currentTab={currentTab}
+              onChangeTab={handleTabChange}
+              onOpenSupport={() => setSupportOpen(true)}
+            />
+          </>
+        )}
+
+        {/* MODALS & PORTALS */}
+
+        {/* Auth Modal */}
+        <AuthModal
+          isOpen={authOpen}
+          onClose={() => setAuthOpen(false)}
+          config={config}
+          onSuccess={(user) => setCurrentUser(user)}
+        />
+
+        {/* Wallet & Add Money / Withdraw Modal */}
+        <WalletModal
+          isOpen={walletOpen}
+          onClose={() => setWalletOpen(false)}
+          currentUser={currentUser}
+          config={config}
+          initialTab={walletTab}
+          onNeedAuth={() => { setWalletOpen(false); setAuthOpen(true); }}
+          onSuccess={() => setWalletOpen(false)}
+        />
+
+        {/* Tournament Details & Join Modal */}
+        <TournamentDetailsModal
+          tournament={detailsTournament}
+          currentUser={currentUser}
+          onClose={() => setDetailsTournament(null)}
+          onNeedAuth={() => { setDetailsTournament(null); setAuthOpen(true); }}
+          onNeedWallet={() => { setDetailsTournament(null); handleOpenWalletWithTab('add_money'); }}
+        />
+
+        {/* Transaction History Modal */}
+        <TransactionHistoryModal
+          isOpen={historyOpen}
+          onClose={() => setHistoryOpen(false)}
+          transactions={transactions}
+          userEmail={currentUser?.email || ''}
+        />
+
+        {/* Rules Modal */}
+        <RulesModal
+          isOpen={rulesOpen}
+          onClose={() => setRulesOpen(false)}
+          config={config}
+        />
+
+        {/* Top Players Modal */}
+        <TopPlayersModal
+          isOpen={topPlayersOpen}
+          onClose={() => setTopPlayersOpen(false)}
+          users={users}
+        />
+
+
+
+        {/* My Profile Modal */}
+        <MyProfileModal
+          isOpen={myProfileOpen}
+          onClose={() => setMyProfileOpen(false)}
+          currentUser={currentUser}
+        />
+
+        {/* Support Modal */}
+        <SupportModal
+          isOpen={supportOpen}
+          onClose={() => setSupportOpen(false)}
+          config={config}
+        />
+
+        {/* Master Admin Security Gate */}
+        <AdminSecurityGate
+          isOpen={adminGateOpen}
+          onClose={() => setAdminGateOpen(false)}
+          config={config}
+          onSuccess={() => {
+            setAdminGateOpen(false);
+            setAdminPanelOpen(true);
+          }}
+        />
+
+        {/* Complete Admin Panel */}
+        <AdminPanel
+          isOpen={adminPanelOpen}
+          onClose={() => setAdminPanelOpen(false)}
+          config={config}
+          tournaments={tournaments}
+          transactions={transactions}
+          users={users}
+        />
+      </div>
+    </div>
+  );
+}
