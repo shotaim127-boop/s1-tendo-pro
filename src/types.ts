@@ -90,6 +90,24 @@ export interface UserAccount {
   avatarUrl: string;
   createdAt: string;
   role: 'user' | 'admin';
+  referralCode?: string;
+  referredBy?: string;
+  totalReferrals?: number;
+  referralEarnings?: number;
+  lastSpinDate?: string;
+}
+
+export interface AppFeatures {
+  referAndEarn: boolean;
+  referralBonus: number;
+  shopTopUp: boolean;
+  luckySpin: boolean;
+  communityChat: boolean;
+  leaderboard: boolean;
+  maintenanceMode?: boolean;
+  maintenanceNotice?: string;
+  customFeatureName?: string;
+  customFeatureDescription?: string;
 }
 
 export interface AppConfig {
@@ -105,4 +123,5 @@ export interface AppConfig {
   noticeText: string;
   rulesText: string[];
   categoryImages?: Record<string, string>;
+  features?: AppFeatures;
 }

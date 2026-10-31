@@ -32,6 +32,103 @@ if (process.env.GEMINI_API_KEY) {
 function generateFallbackAiResponse(prompt: string, context: any) {
   const p = prompt.toLowerCase();
   
+  // Feature toggles
+  if (p.includes('রেফার') || p.includes('refer') || p.includes('referral')) {
+    const isOff = p.includes('অফ') || p.includes('off') || p.includes('বন্ধ') || p.includes('disable');
+    return {
+      success: true,
+      data: {
+        message: isOff 
+          ? '🚫 রেফার অ্যান্ড আর্ন (Refer & Earn) ফিচারটি অ্যাপে বন্ধ (OFF) করা হয়েছে।'
+          : '🎉 রেফার অ্যান্ড আর্ন (Refer & Earn) ফিচারটি অ্যাপে অন (ON) করা হয়েছে! প্লেয়াররা এখন তাদের পার্সোনাল রেফার কোড বন্ধুদের শেয়ার করে প্রতি রেফারে ৳১০ ক্যাশ ইনকাম করতে পারবে।',
+        actionType: 'TOGGLE_FEATURE',
+        featureKey: 'referAndEarn',
+        featureEnabled: !isOff,
+        featureData: { referralBonus: 10 },
+      },
+    };
+  }
+
+  if (p.includes('শপ') || p.includes('shop') || p.includes('টপ আপ') || p.includes('টপআপ') || p.includes('topup') || p.includes('diamond') || p.includes('ডায়মন্ড')) {
+    const isOff = p.includes('অফ') || p.includes('off') || p.includes('বন্ধ') || p.includes('disable');
+    return {
+      success: true,
+      data: {
+        message: isOff
+          ? '🚫 ডায়মন্ড টপ-আপ শপ ফিচারটি সাময়িকভাবে বন্ধ (OFF) করা হয়েছে।'
+          : '💎 ফ্রি ফায়ার ডায়মন্ড টপ-আপ শপ (Top-Up Shop) ফিচারটি অ্যাপে সফলভাবে লাইভ করা হয়েছে! প্লেয়াররা এখন ওয়ালেট দিয়ে সরাসরি ডায়মন্ড কিনতে পারবে।',
+        actionType: 'TOGGLE_FEATURE',
+        featureKey: 'shopTopUp',
+        featureEnabled: !isOff,
+      },
+    };
+  }
+
+  if (p.includes('স্পিন') || p.includes('spin') || p.includes('লাকি')) {
+    const isOff = p.includes('অফ') || p.includes('off') || p.includes('বন্ধ') || p.includes('disable');
+    return {
+      success: true,
+      data: {
+        message: isOff
+          ? '🚫 ডেইলি লাকি স্পিন ফিচারটি বন্ধ করা হয়েছে।'
+          : '🎡 ডেইলি লাকি স্পিন (Lucky Spin) ফিচারটি অন করা হয়েছে! প্লেয়াররা প্রতিদিন ১ বার বিনামূল্যে স্পিন করে ক্যাশ জিততে পারবে।',
+        actionType: 'TOGGLE_FEATURE',
+        featureKey: 'luckySpin',
+        featureEnabled: !isOff,
+      },
+    };
+  }
+
+  if (p.includes('চ্যাট') || p.includes('chat') || p.includes('কমিউনিটি')) {
+    const isOff = p.includes('অফ') || p.includes('off') || p.includes('বন্ধ');
+    return {
+      success: true,
+      data: {
+        message: isOff
+          ? '🚫 কমিউনিটি চ্যাট ফিচারটি বন্ধ করা হয়েছে।'
+          : '💬 প্লেয়ার লাইভ কমিউনিটি চ্যাট ও ডিসকাশন ফিচারটি অন করা হয়েছে!',
+        actionType: 'TOGGLE_FEATURE',
+        featureKey: 'communityChat',
+        featureEnabled: !isOff,
+      },
+    };
+  }
+
+  if (p.includes('লিডারবোর্ড') || p.includes('leaderboard') || p.includes('সেরা খেলোয়াড়')) {
+    const isOff = p.includes('অফ') || p.includes('off') || p.includes('বন্ধ');
+    return {
+      success: true,
+      data: {
+        message: isOff
+          ? '🚫 লিডারবোর্ড ফিচারটি বন্ধ করা হয়েছে।'
+          : '🏆 সেরা প্লেয়ারদের লিডারবোর্ড ও চ্যাম্পিয়ন তালিকা অন করা হয়েছে!',
+        actionType: 'TOGGLE_FEATURE',
+        featureKey: 'leaderboard',
+        featureEnabled: !isOff,
+      },
+    };
+  }
+
+  // Update phone numbers or config
+  const bdPhoneMatch = prompt.match(/01[3-9]\d{8}/);
+  if (bdPhoneMatch && (p.includes('বিকাশ') || p.includes('নগদ') || p.includes('নাম্বার') || p.includes('number'))) {
+    const newNum = bdPhoneMatch[0];
+    const isBkash = p.includes('বিকাশ') || p.includes('bkash');
+    const isNagad = p.includes('নগদ') || p.includes('nagad');
+    return {
+      success: true,
+      data: {
+        message: `📱 পেমেন্ট নাম্বার সফলভাবে পরিবর্তন করা হয়েছে: ${newNum}`,
+        actionType: 'UPDATE_CONFIG',
+        configUpdate: {
+          ...(isBkash ? { bkashNumber: newNum } : {}),
+          ...(isNagad ? { nagadNumber: newNum } : {}),
+          ...(!isBkash && !isNagad ? { addMoneyNumber: newNum, bkashNumber: newNum, nagadNumber: newNum } : {}),
+        },
+      },
+    };
+  }
+
   if (p.includes('নোটিশ') || p.includes('notice') || p.includes('ঘোষণা')) {
     const text = '🔥 S1 TENDO PRO মেগা ধামাকা! আজ রাত ৯:০০ টায় স্পেশাল ৫০ টাকার CS 6v6 ক্যাশ টুর্নামেন্ট অনুষ্ঠিত হবে। দ্রুত স্লট বুকিং করুন!';
     return {
@@ -169,11 +266,17 @@ The administrator will ask you in Bengali or English to create tournaments, writ
 You MUST respond strictly in JSON matching the schema.
 Always provide a polite, natural Bengali message explaining what was prepared in 'message'.
 Set actionType to one of:
+- TOGGLE_FEATURE (when admin asks to add, enable, turn on/off features like Refer & Earn [referAndEarn], Diamond Shop [shopTopUp], Lucky Spin [luckySpin], Community Chat [communityChat], Leaderboard [leaderboard], Maintenance [maintenanceMode])
+- UPDATE_CONFIG (when admin asks to change bkash/nagad number, support phone, telegram link, app name, etc.)
 - CREATE_TOURNAMENT (when creating or adding a new tournament)
 - UPDATE_NOTICE (when updating the live notice banner ticker)
 - ADD_RULE (when adding anti-cheat or platform tournament rules)
 - GENERATE_ROOM (when generating custom room credentials)
 - NONE (pure Q&A or analysis)
+
+For TOGGLE_FEATURE:
+- featureKey: 'referAndEarn', 'shopTopUp', 'luckySpin', 'communityChat', 'leaderboard', or 'maintenanceMode'
+- featureEnabled: boolean (true to add/enable, false to disable)
 
 For CREATE_TOURNAMENT, include full tournamentData with realistic Free Fire esports parameters:
 - title: catchy title in English/Bengali
@@ -204,7 +307,25 @@ For CREATE_TOURNAMENT, include full tournamentData with realistic Free Fire espo
             },
             actionType: {
               type: Type.STRING,
-              description: 'One of CREATE_TOURNAMENT, UPDATE_NOTICE, ADD_RULE, GENERATE_ROOM, NONE.',
+              description: 'One of TOGGLE_FEATURE, UPDATE_CONFIG, CREATE_TOURNAMENT, UPDATE_NOTICE, ADD_RULE, GENERATE_ROOM, NONE.',
+            },
+            featureKey: {
+              type: Type.STRING,
+              description: 'referAndEarn, shopTopUp, luckySpin, communityChat, leaderboard, maintenanceMode',
+            },
+            featureEnabled: {
+              type: Type.BOOLEAN,
+            },
+            configUpdate: {
+              type: Type.OBJECT,
+              properties: {
+                bkashNumber: { type: Type.STRING },
+                nagadNumber: { type: Type.STRING },
+                addMoneyNumber: { type: Type.STRING },
+                noticeText: { type: Type.STRING },
+                telegramLink: { type: Type.STRING },
+                appName: { type: Type.STRING },
+              },
             },
             tournamentData: {
               type: Type.OBJECT,

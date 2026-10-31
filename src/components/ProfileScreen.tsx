@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wallet, Banknote, History, UserCheck, BookOpen, BarChart3, Code2, ChevronRight, LogOut, ShieldAlert, Sparkles, Smartphone, MessageCircle, Copy, Check } from 'lucide-react';
+import { Wallet, Banknote, History, UserCheck, BookOpen, BarChart3, Code2, ChevronRight, LogOut, ShieldAlert, Sparkles, Smartphone, MessageCircle, Copy, Check, Gift, Gem } from 'lucide-react';
 import { UserAccount, AppConfig } from '../types';
 
 interface ProfileScreenProps {
@@ -14,6 +14,9 @@ interface ProfileScreenProps {
   onOpenAdminAuth: () => void;
   onLogout: () => void;
   onNeedAuth: () => void;
+  onOpenRefer?: () => void;
+  onOpenShop?: () => void;
+  onOpenSpin?: () => void;
 }
 
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
@@ -28,6 +31,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onOpenAdminAuth,
   onLogout,
   onNeedAuth,
+  onOpenRefer,
+  onOpenShop,
+  onOpenSpin,
 }) => {
   const [showDevModal, setShowDevModal] = useState(false);
   const tapCountRef = React.useRef(0);
@@ -223,6 +229,81 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           </div>
           <ChevronRight className="w-4 h-4 text-gray-400" />
         </button>
+
+        {/* Refer & Earn - Dynamic Feature */}
+        {config.features?.referAndEarn && (
+          <button
+            onClick={onOpenRefer}
+            className="w-full p-3.5 bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-transparent dark:from-orange-950/40 dark:to-slate-900 hover:bg-orange-50 dark:hover:bg-slate-800/80 rounded-2xl flex items-center justify-between border border-orange-200 dark:border-orange-900/50 shadow-2xs transition-all text-left active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-orange-100 dark:bg-orange-950/80 text-orange-600 dark:text-orange-400 flex items-center justify-center">
+                <Gift className="w-5 h-5 text-orange-600 animate-bounce" />
+              </div>
+              <div>
+                <span className="text-sm font-bold text-gray-900 dark:text-white block">
+                  Refer & Earn (রেফার ও আয়)
+                </span>
+                <span className="text-[10px] text-orange-600 dark:text-orange-400 font-semibold">
+                  প্রতি সফল রেফারে ৳{config.features?.referralBonus || 10} ক্যাশ বোনাস!
+                </span>
+              </div>
+            </div>
+            <span className="text-xs font-bold bg-orange-500 text-white px-2.5 py-1 rounded-xl shadow-xs">
+              আর্ন করুন
+            </span>
+          </button>
+        )}
+
+        {/* Diamond Top-Up Shop - Dynamic Feature */}
+        {config.features?.shopTopUp && (
+          <button
+            onClick={onOpenShop}
+            className="w-full p-3.5 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-transparent dark:from-cyan-950/40 dark:to-slate-900 hover:bg-cyan-50 dark:hover:bg-slate-800/80 rounded-2xl flex items-center justify-between border border-cyan-200 dark:border-cyan-900/50 shadow-2xs transition-all text-left active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-cyan-100 dark:bg-cyan-950/80 text-cyan-600 dark:text-cyan-400 flex items-center justify-center">
+                <Gem className="w-5 h-5 text-cyan-600" />
+              </div>
+              <div>
+                <span className="text-sm font-bold text-gray-900 dark:text-white block">
+                  Diamond Shop (ডায়মন্ড শপ)
+                </span>
+                <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-semibold">
+                  সবচেয়ে কম মূল্যে ফ্রি ফায়ার ডায়মন্ড টপ-আপ
+                </span>
+              </div>
+            </div>
+            <span className="text-xs font-bold bg-cyan-500 text-white px-2.5 py-1 rounded-xl shadow-xs">
+              টপ আপ
+            </span>
+          </button>
+        )}
+
+        {/* Lucky Spin - Dynamic Feature */}
+        {config.features?.luckySpin && (
+          <button
+            onClick={onOpenSpin}
+            className="w-full p-3.5 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-transparent dark:from-purple-950/40 dark:to-slate-900 hover:bg-purple-50 dark:hover:bg-slate-800/80 rounded-2xl flex items-center justify-between border border-purple-200 dark:border-purple-900/50 shadow-2xs transition-all text-left active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-purple-100 dark:bg-purple-950/80 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-purple-500 animate-spin" />
+              </div>
+              <div>
+                <span className="text-sm font-bold text-gray-900 dark:text-white block">
+                  Daily Lucky Spin (লাকি স্পিন)
+                </span>
+                <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold">
+                  প্রতিদিন ফ্রি স্পিনে জিতে নিন ৳২০ পর্যন্ত
+                </span>
+              </div>
+            </div>
+            <span className="text-xs font-bold bg-purple-600 text-white px-2.5 py-1 rounded-xl shadow-xs">
+              স্পিন করুন
+            </span>
+          </button>
+        )}
 
         {/* My Profile */}
         <button

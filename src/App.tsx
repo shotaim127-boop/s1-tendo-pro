@@ -9,6 +9,7 @@ import { MyMatchesScreen } from './components/MyMatchesScreen';
 import { ResultsScreen } from './components/ResultsScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { AuthModal } from './components/AuthModal';
+import { AuthScreen } from './components/AuthScreen';
 import { WalletModal } from './components/WalletModal';
 import { TournamentDetailsModal } from './components/TournamentDetailsModal';
 import { TransactionHistoryModal } from './components/TransactionHistoryModal';
@@ -18,6 +19,10 @@ import { MyProfileModal } from './components/MyProfileModal';
 import { SupportModal } from './components/SupportModal';
 import { AdminSecurityGate } from './components/AdminSecurityGate';
 import { AdminPanel } from './components/AdminPanel';
+import { NotificationsModal } from './components/NotificationsModal';
+import { ReferEarnModal } from './components/ReferEarnModal';
+import { ShopModal } from './components/ShopModal';
+import { LuckySpinModal } from './components/LuckySpinModal';
 import { Lock } from 'lucide-react';
 
 export default function App() {
@@ -41,6 +46,10 @@ export default function App() {
   const [topPlayersOpen, setTopPlayersOpen] = useState(false);
   const [myProfileOpen, setMyProfileOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [referOpen, setReferOpen] = useState(false);
+  const [shopOpen, setShopOpen] = useState(false);
+  const [spinOpen, setSpinOpen] = useState(false);
   const [detailsTournament, setDetailsTournament] = useState<Tournament | null>(null);
 
   // Stealth Admin
@@ -98,18 +107,21 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-screen bg-gray-100 dark:bg-slate-950 text-gray-900 dark:text-gray-100 transition-colors w-full selection:bg-indigo-500 selection:text-white`}>
+    <div className={`w-full min-h-screen bg-gray-100 dark:bg-slate-950 text-gray-900 dark:text-gray-100 transition-colors selection:bg-indigo-500 selection:text-white`}>
       {/* Fullscreen Shell */}
       <div className="w-full min-h-screen bg-[#f8fafc] dark:bg-[#0c1017] relative flex flex-col overflow-x-hidden">
-        {/* Splash Loader Screen matching Screenshot 3 */}
         {showSplash ? (
           <SplashLoader
             config={config}
             onFinish={() => {
               setShowSplash(false);
-              if (!currentUser) {
-                setAuthOpen(true);
-              }
+            }}
+          />
+        ) : !currentUser ? (
+          <AuthScreen
+            config={config}
+            onSuccess={(user) => {
+              setCurrentUser(user);
             }}
           />
         ) : (
@@ -121,12 +133,12 @@ export default function App() {
               darkMode={darkMode}
               onToggleDarkMode={handleToggleDarkMode}
               onOpenWallet={() => handleOpenWalletWithTab('add_money')}
-              onOpenNotifications={() => setSupportOpen(true)}
+              onOpenNotifications={() => setNotificationsOpen(true)}
               onOpenAdminAuth={() => setAdminGateOpen(true)}
             />
 
             {/* Main Screen Content by Tab */}
-            <main className="flex-1 overflow-y-auto">
+            <main className="w-full pb-20">
               {currentTab === 'play' && (
                 <PlayScreen
                   tournaments={tournaments}
@@ -134,6 +146,9 @@ export default function App() {
                   config={config}
                   onSelectTournament={(t) => setDetailsTournament(t)}
                   onOpenSupport={() => setSupportOpen(true)}
+                  onOpenRefer={() => setReferOpen(true)}
+                  onOpenShop={() => setShopOpen(true)}
+                  onOpenSpin={() => setSpinOpen(true)}
                 />
               )}
 
@@ -161,6 +176,9 @@ export default function App() {
                   onOpenRules={() => setRulesOpen(true)}
                   onOpenTopPlayers={() => setTopPlayersOpen(true)}
                   onOpenAdminAuth={() => setAdminGateOpen(true)}
+                  onOpenRefer={() => setReferOpen(true)}
+                  onOpenShop={() => setShopOpen(true)}
+                  onOpenSpin={() => setSpinOpen(true)}
                   onLogout={() => {
                     StorageService.logout();
                     setAuthOpen(true);
@@ -245,6 +263,51 @@ export default function App() {
           isOpen={supportOpen}
           onClose={() => setSupportOpen(false)}
           config={config}
+        />
+
+        {/* Notifications Modal */}
+        <NotificationsModal
+          isOpen={notificationsOpen}
+          onClose={() => setNotificationsOpen(false)}
+          config={config}
+        />
+
+        {/* Dynamic Feature: Refer & Earn Modal */}
+        <ReferEarnModal
+          isOpen={referOpen}
+          onClose={() => setReferOpen(false)}
+          currentUser={currentUser}
+          config={config}
+          onSuccess={() => {
+            setCurrentUser(StorageService.getCurrentUser());
+          }}
+        />
+
+        {/* Dynamic Feature: Diamond Shop Modal */}
+        <ShopModal
+          isOpen={shopOpen}
+          onClose={() => setShopOpen(false)}
+          currentUser={currentUser}
+          config={config}
+          onNeedWallet={() => {
+            setShopOpen(false);
+            handleOpenWalletWithTab('add_money');
+          }}
+          onSuccess={() => {
+            setCurrentUser(StorageService.getCurrentUser());
+            setShopOpen(false);
+          }}
+        />
+
+        {/* Dynamic Feature: Daily Lucky Spin Modal */}
+        <LuckySpinModal
+          isOpen={spinOpen}
+          onClose={() => setSpinOpen(false)}
+          currentUser={currentUser}
+          config={config}
+          onSuccess={() => {
+            setCurrentUser(StorageService.getCurrentUser());
+          }}
         />
 
         {/* Master Admin Security Gate */}

@@ -65,7 +65,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, config, o
         onClose();
       }, 1200);
     } else {
-      setNotice('নতুন একাউন্ট সফলভাবে তৈরি হয়েছে! স্বাগতম বোনাস ৳১৫ যোগ করা হয়েছে।');
+      setNotice('নতুন একাউন্ট সফলভাবে তৈরি হয়েছে!');
       setTimeout(() => {
         onSuccess(user);
         onClose();

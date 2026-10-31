@@ -11,12 +11,13 @@
 html, body {
   margin: 0;
   padding: 0;
-  width: 100vw;
-  max-width: 100%;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #0c1017;
   overflow-x: hidden;
+  overflow-y: auto;
   font-family: var(--font-bengali);
   -webkit-tap-highlight-color: transparent;
-  user-select: none;
 }
 
 .font-heading {

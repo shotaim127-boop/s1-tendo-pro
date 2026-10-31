@@ -4,7 +4,8 @@ import {
   X, LayoutDashboard, CreditCard, Banknote, Trophy, Users, Settings, 
   Check, XCircle, Plus, Edit2, Trash2, KeyRound, Sparkles, AlertTriangle, 
   Search, ShieldCheck, ArrowRight, Eye, Phone, RefreshCw, DollarSign,
-  Upload, Image as ImageIcon, Camera, Bot, Wand2, Send, Zap, Copy, CheckCheck
+  Upload, Image as ImageIcon, Camera, Bot, Wand2, Send, Zap, Copy, CheckCheck,
+  Gift, Gem, ToggleRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { AppConfig, Tournament, Transaction, UserAccount, MatchCategory, MatchWinner, MatchType } from '../types';
@@ -24,12 +25,16 @@ export interface AiChatMessage {
   sender: 'user' | 'ai';
   text: string;
   action?: {
-    actionType: 'CREATE_TOURNAMENT' | 'UPDATE_NOTICE' | 'ADD_RULE' | 'GENERATE_ROOM' | 'NONE';
+    actionType: 'CREATE_TOURNAMENT' | 'UPDATE_NOTICE' | 'ADD_RULE' | 'GENERATE_ROOM' | 'TOGGLE_FEATURE' | 'UPDATE_CONFIG' | 'NONE';
     tournamentData?: any;
     noticeText?: string;
     ruleText?: string;
     roomId?: string;
     roomPassword?: string;
+    featureKey?: string;
+    featureEnabled?: boolean;
+    featureData?: any;
+    configUpdate?: any;
   };
   applied?: boolean;
   timestamp: string;
@@ -170,6 +175,44 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     } else if (actionType === 'GENERATE_ROOM' && msg.action.roomId) {
       showToast(`🔑 রুম আইডি: ${msg.action.roomId} ও পাসওয়ার্ড জেনারেট হয়েছে!`);
       setAiMessages(prev => prev.map(m => m.id === msg.id ? { ...m, applied: true } : m));
+    } else if (actionType === 'TOGGLE_FEATURE' && msg.action.featureKey) {
+      const currentFeatures = config.features || {
+        referAndEarn: true,
+        referralBonus: 10,
+        shopTopUp: false,
+        luckySpin: false,
+        communityChat: false,
+        leaderboard: true,
+      };
+      const key = msg.action.featureKey;
+      const isEnabled = msg.action.featureEnabled !== false;
+      const updatedFeatures = {
+        ...currentFeatures,
+        [key]: isEnabled,
+        ...(msg.action.featureData || {}),
+      };
+      StorageService.updateConfig({ features: updatedFeatures });
+      try {
+        confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 } });
+      } catch {}
+      const featureNames: Record<string, string> = {
+        referAndEarn: 'রেফার অ্যান্ড আর্ন (Refer & Earn)',
+        shopTopUp: 'ডায়মন্ড টপ-আপ শপ (Top-Up Shop)',
+        luckySpin: 'ডেইলি লাকি স্পিন (Lucky Spin)',
+        communityChat: 'কমিউনিটি লাইভ চ্যাট',
+        leaderboard: 'টপ প্লেয়ার লিডারবোর্ড',
+        maintenanceMode: 'মেইনটেন্যান্স মোড',
+      };
+      const fName = featureNames[key] || key;
+      showToast(`⚡ "${fName}" ফিচারটি সফলভাবে অ্যাপে ${isEnabled ? 'অন (ON)' : 'অফ (OFF)'} করা হয়েছে!`);
+      setAiMessages(prev => prev.map(m => m.id === msg.id ? { ...m, applied: true } : m));
+    } else if (actionType === 'UPDATE_CONFIG' && msg.action.configUpdate) {
+      StorageService.updateConfig(msg.action.configUpdate);
+      if (msg.action.configUpdate.bkashNumber) setBkashNumber(msg.action.configUpdate.bkashNumber);
+      if (msg.action.configUpdate.nagadNumber) setNagadNumber(msg.action.configUpdate.nagadNumber);
+      if (msg.action.configUpdate.noticeText) setNoticeText(msg.action.configUpdate.noticeText);
+      showToast('⚙️ অ্যাপের কনফিগারেশন সফলভাবে আপডেট করা হয়েছে!');
+      setAiMessages(prev => prev.map(m => m.id === msg.id ? { ...m, applied: true } : m));
     }
   };
 
@@ -206,7 +249,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
       const resJson = await res.json();
       if (resJson && resJson.data) {
-        const { message, actionType, tournamentData, noticeText: genNotice, ruleText: genRule, roomId, roomPassword } = resJson.data;
+        const { 
+          message, 
+          actionType, 
+          tournamentData, 
+          noticeText: genNotice, 
+          ruleText: genRule, 
+          roomId, 
+          roomPassword,
+          featureKey,
+          featureEnabled,
+          featureData,
+          configUpdate,
+        } = resJson.data;
 
         const aiMsg: AiChatMessage = {
           id: `ai-${Date.now()}`,
@@ -219,6 +274,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             ruleText: genRule,
             roomId,
             roomPassword,
+            featureKey,
+            featureEnabled,
+            featureData,
+            configUpdate,
           },
           applied: false,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -1452,6 +1511,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
                     {[
                       {
+                        label: '🎁 রেফার অন করো',
+                        prompt: 'এপে রেফার অন করো',
+                      },
+                      {
+                        label: '💎 ডায়মন্ড শপ অন করো',
+                        prompt: 'এপে ডায়মন্ড শপ অন করো',
+                      },
+                      {
+                        label: '🎡 লাকি স্পিন অন করো',
+                        prompt: 'এপে লাকি স্পিন অন করো',
+                      },
+                      {
+                        label: '📱 বিকাশ ও নগদ নাম্বার সেট',
+                        prompt: 'বিকাশ ও নগদ নাম্বার 01712345678 তে সেট করো',
+                      },
+                      {
                         label: '🎮 CS 6v6 টুর্নামেন্ট',
                         prompt: 'আজ রাত ৯টায় ৫০ টাকার নতুন CS 6v6 ক্যাশ টুর্নামেন্ট বানিয়ে অ্যাপে এড করো',
                       },
@@ -1676,6 +1751,96 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                               </>
                             )}
                           </button>
+                        </div>
+                      )}
+
+                      {/* Render Interactive Feature Toggle Card */}
+                      {msg.action && msg.action.actionType === 'TOGGLE_FEATURE' && msg.action.featureKey && (
+                        <div className="mt-2 p-3 rounded-xl bg-purple-950/40 border border-purple-500/40 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-purple-300 flex items-center gap-1.5">
+                              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                              ফিচার কনফিগারেশন
+                            </span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                              msg.action.featureEnabled !== false ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
+                            }`}>
+                              {msg.action.featureEnabled !== false ? 'অন (ACTIVE)' : 'অফ (DISABLED)'}
+                            </span>
+                          </div>
+
+                          <div className="p-2.5 bg-slate-950/80 rounded-lg border border-slate-800 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {msg.action.featureKey === 'referAndEarn' ? (
+                                <Gift className="w-5 h-5 text-orange-400" />
+                              ) : msg.action.featureKey === 'shopTopUp' ? (
+                                <Gem className="w-5 h-5 text-cyan-400" />
+                              ) : (
+                                <Sparkles className="w-5 h-5 text-purple-400" />
+                              )}
+                              <div>
+                                <span className="text-xs font-bold text-white block">
+                                  {msg.action.featureKey === 'referAndEarn' ? 'রেফার ও আয় (Refer & Earn)' :
+                                   msg.action.featureKey === 'shopTopUp' ? 'ডায়মন্ড টপ-আপ শপ (Top-Up Shop)' :
+                                   msg.action.featureKey === 'luckySpin' ? 'ডেইলি লাকি স্পিন (Lucky Spin)' :
+                                   msg.action.featureKey === 'communityChat' ? 'কমিউনিটি চ্যাট (Live Chat)' :
+                                   msg.action.featureKey === 'leaderboard' ? 'প্লেয়ার লিডারবোর্ড (Leaderboard)' : msg.action.featureKey}
+                                </span>
+                                <span className="text-[10px] text-gray-400">
+                                  অ্যাপে ব্যবহারকারীদের জন্য {msg.action.featureEnabled !== false ? 'উপলব্ধ ও কার্যকর হবে' : 'লুকিয়ে ফেলা হবে'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {msg.applied ? (
+                            <div className="w-full py-1.5 bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5">
+                              <CheckCheck className="w-4 h-4 text-emerald-400" />
+                              <span>অ্যাপে সফলভাবে প্রয়োগ করা হয়েছে!</span>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => executeAiAction(msg)}
+                              className="w-full py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all"
+                            >
+                              <Zap className="w-4 h-4 text-amber-300" />
+                              <span>⚡ অ্যাপে এখনই চালু/বন্ধ করুন (Apply Now)</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Render Interactive Config Update Card */}
+                      {msg.action && msg.action.actionType === 'UPDATE_CONFIG' && msg.action.configUpdate && (
+                        <div className="mt-2 p-3 rounded-xl bg-blue-950/40 border border-blue-500/40 space-y-2.5">
+                          <span className="text-[11px] font-bold text-blue-300 block">
+                            ⚙️ অ্যাপ কনফিগারেশন পরিবর্তন:
+                          </span>
+                          <div className="p-2.5 bg-slate-950/80 rounded-lg border border-slate-800 text-xs font-mono space-y-1">
+                            {msg.action.configUpdate.bkashNumber && (
+                              <p className="text-pink-300">বিকাশ: {msg.action.configUpdate.bkashNumber}</p>
+                            )}
+                            {msg.action.configUpdate.nagadNumber && (
+                              <p className="text-orange-300">নগদ: {msg.action.configUpdate.nagadNumber}</p>
+                            )}
+                            {msg.action.configUpdate.noticeText && (
+                              <p className="text-amber-300 font-sans">নোটিশ: {msg.action.configUpdate.noticeText}</p>
+                            )}
+                          </div>
+                          {msg.applied ? (
+                            <div className="w-full py-1.5 bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5">
+                              <CheckCheck className="w-4 h-4 text-emerald-400" />
+                              <span>কনফিগারেশন আপডেট সফলভাবে প্রয়োগ হয়েছে!</span>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => executeAiAction(msg)}
+                              className="w-full py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all"
+                            >
+                              <Zap className="w-4 h-4 text-amber-300" />
+                              <span>⚡ এখনই আপডেট প্রয়োগ করুন (Apply Now)</span>
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

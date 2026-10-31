@@ -148,7 +148,7 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
   },
   {
     id: 'ff-lw-301',
-    title: 'Lone Wolf 2v2 | Duo Firefight',
+    title: 'Lone Wolf 2v2 | HEADSHOT 2V2 PRO',
     category: 'Lone Wolf 2v2',
     matchType: '2v2',
     entryFee: 30,
@@ -163,12 +163,12 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     roomId: '',
     roomPassword: '',
     isRoomPublished: false,
-    rules: 'Fast paced 2v2 showdown. Best of 9 rounds.',
+    rules: 'Lone Wolf 2v2 Headshot only match. Only headshots count.',
     joinedPlayers: [],
   },
   {
     id: 'ff-lw-302',
-    title: 'Lone Wolf 1 Vs 1 | Lost To Win Pro',
+    title: 'Lone Wolf 1 Vs 1 | HEADSHOT 1V1 PRO',
     category: 'Lone Wolf 1 Vs 1',
     matchType: '1v1',
     entryFee: 50,
@@ -183,7 +183,7 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
     roomId: '',
     roomPassword: '',
     isRoomPublished: false,
-    rules: 'Pure 1v1 skill clash. No medkit during active combat.',
+    rules: 'Lone Wolf 1v1 Headshot only match. Test your headshot accuracy.',
     joinedPlayers: [],
   },
   // Sample completed matches for Result tab matching screenshot
@@ -380,7 +380,7 @@ export const StorageService = {
       phone: payload.phone || '',
       ffUid: payload.ffUid || '',
       inGameName: payload.inGameName || payload.name || 'Survivor',
-      balance: 15, // Welcome gift of 15 BDT
+      balance: 0, // No welcome bonus, balance starts at 0 BDT
       totalWon: 0,
       matchesJoined: 0,
       avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanEmail}`,
@@ -587,6 +587,54 @@ export const StorageService = {
       trxId: params.trxId,
       note: 'এডমিন ভেরিফিকেশনের অপেক্ষায়',
     });
+  },
+
+  // AI Auto Verify and Instant Add Money
+  aiVerifyAndAddMoney(params: {
+    user: UserAccount;
+    method: 'bKash' | 'Nagad';
+    senderNumber: string;
+    trxId: string;
+    amount: number;
+  }): { success: boolean; message: string; transaction?: Transaction } {
+    const cleanTrx = params.trxId.toUpperCase().trim();
+    if (!cleanTrx || cleanTrx.length < 5) {
+      return { success: false, message: 'সঠিক Transaction ID দিন।' };
+    }
+    if (!params.senderNumber || params.senderNumber.length < 11) {
+      return { success: false, message: 'সঠিক প্রেরক মোবাইল নাম্বার দিন।' };
+    }
+
+    const allTxs = this.getTransactions();
+    const duplicate = allTxs.find(t => t.trxId && t.trxId.toUpperCase() === cleanTrx && t.status === 'completed');
+    if (duplicate) {
+      return { success: false, message: 'এই ট্রানজেকশন আইডি (TrxID) ইতিপূর্বে ব্যবহার করা হয়েছে!' };
+    }
+
+    const tx = this.createTransaction({
+      userId: params.user.id,
+      userEmail: params.user.email,
+      userName: params.user.name,
+      type: 'add_money',
+      amount: params.amount,
+      status: 'completed',
+      method: params.method,
+      senderNumber: params.senderNumber,
+      trxId: cleanTrx,
+      note: '🤖 Gemini AI Auto-Verified & Instant Credited',
+    });
+
+    const updatedUser: UserAccount = {
+      ...params.user,
+      balance: params.user.balance + params.amount,
+    };
+    this.saveUser(updatedUser);
+
+    return {
+      success: true,
+      message: `টাকা সফলভাবে AI দ্বারা ভেরিফাই ও ওয়ালেটে যুক্ত হয়েছে! ৳${params.amount} যোগ করা হয়েছে।`,
+      transaction: tx,
+    };
   },
 
   // Withdraw Request (Stays PENDING until Admin confirms)

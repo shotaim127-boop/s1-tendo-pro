@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Radio, ChevronRight, Headphones, Volume2, ArrowLeft, Flame, Sparkles } from 'lucide-react';
+import { Radio, ChevronRight, Headphones, Volume2, ArrowLeft, Flame, Sparkles, Gift, Gem } from 'lucide-react';
 import { Tournament, MatchCategory, UserAccount, AppConfig } from '../types';
 import { TournamentCard } from './TournamentCard';
 
@@ -9,6 +9,9 @@ interface PlayScreenProps {
   config: AppConfig;
   onSelectTournament: (tournament: Tournament) => void;
   onOpenSupport: () => void;
+  onOpenRefer?: () => void;
+  onOpenShop?: () => void;
+  onOpenSpin?: () => void;
 }
 
 export const PlayScreen: React.FC<PlayScreenProps> = ({
@@ -17,6 +20,9 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
   config,
   onSelectTournament,
   onOpenSupport,
+  onOpenRefer,
+  onOpenShop,
+  onOpenSpin,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<MatchCategory | 'ALL' | null>(null);
 
@@ -191,6 +197,39 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
             </div>
           </div>
 
+          {/* Dynamic Active Feature Buttons (Refer / Shop / Spin) */}
+          {(config.features?.referAndEarn || config.features?.shopTopUp || config.features?.luckySpin) && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+              {config.features?.referAndEarn && (
+                <button
+                  onClick={onOpenRefer}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-orange-500/15 to-amber-500/15 border border-orange-300 dark:border-orange-900/50 rounded-xl text-xs font-bold text-orange-600 dark:text-orange-400 active:scale-95 transition-all shadow-xs"
+                >
+                  <Gift className="w-3.5 h-3.5 animate-bounce" />
+                  <span>রেফার ও আয় (৳{config.features?.referralBonus || 10})</span>
+                </button>
+              )}
+              {config.features?.shopTopUp && (
+                <button
+                  onClick={onOpenShop}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-cyan-500/15 to-blue-500/15 border border-cyan-300 dark:border-cyan-900/50 rounded-xl text-xs font-bold text-cyan-600 dark:text-cyan-400 active:scale-95 transition-all shadow-xs"
+                >
+                  <Gem className="w-3.5 h-3.5" />
+                  <span>ডায়মন্ড শপ</span>
+                </button>
+              )}
+              {config.features?.luckySpin && (
+                <button
+                  onClick={onOpenSpin}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-purple-500/15 to-pink-500/15 border border-purple-300 dark:border-purple-900/50 rounded-xl text-xs font-bold text-purple-600 dark:text-purple-400 active:scale-95 transition-all shadow-xs"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-purple-500 animate-spin" />
+                  <span>ডেইলি স্পিন</span>
+                </button>
+              )}
+            </div>
+          )}
+
           {/* 3. 24/7 Support Card matching Screenshot 1 */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-3.5 border border-gray-100 dark:border-slate-800 shadow-xs flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -243,7 +282,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
                 className="group cursor-pointer bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col active:scale-95"
               >
                 {/* Image Banner */}
-                <div className="h-24 w-full relative overflow-hidden bg-slate-800">
+                <div className="h-36 w-full relative overflow-hidden bg-slate-800">
                   <img
                     src={cat.image}
                     alt={cat.title}
