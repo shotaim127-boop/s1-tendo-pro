@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { X, Copy, Check, ShieldCheck, Wallet, ArrowDownRight, Clock, AlertCircle, Sparkles } from 'lucide-react';
+import { X, Copy, Check, ShieldCheck, Wallet, ArrowDownRight, Clock, AlertCircle, Sparkles, ArrowRight } from 'lucide-react';
 import { UserAccount, AppConfig, PaymentMethod } from '../types';
 import { StorageService } from '../services/storage';
 
@@ -30,6 +30,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
   const [senderNumber, setSenderNumber] = useState('');
   const [trxId, setTrxId] = useState('');
   const [addAmount, setAddAmount] = useState('50');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Withdraw fields
   const [receiverNumber, setReceiverNumber] = useState('');
@@ -138,6 +139,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
       return;
     }
 
+    setIsSubmitting(true);
     StorageService.requestAddMoney({
       user: currentUser,
       method,
@@ -152,6 +154,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({
     });
     setTrxId('');
     setTimeout(() => {
+      setIsSubmitting(false);
       onSuccess();
     }, 1500);
   };
@@ -376,63 +379,35 @@ export const WalletModal: React.FC<WalletModalProps> = ({
                     type="text"
                     value={trxId}
                     onChange={(e) => setTrxId(e.target.value)}
-                    placeholder="যেমন: BKS8927189"
+                    placeholder="Transaction ID (TrxID)"
                     required
                     className="w-full px-3 py-2.5 bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
-                <div className="bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-blue-500/10 dark:from-purple-950/40 dark:to-blue-950/40 p-3 rounded-2xl border border-indigo-200 dark:border-indigo-900/50 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center text-white shrink-0 shadow-sm animate-pulse">
-                      <Sparkles className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h5 className="font-heading font-extrabold text-xs text-purple-700 dark:text-purple-300">
-                        🤖 AI অটো এড মানি ভেরিফিকেশন
-                      </h5>
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                        এআই স্বয়ংক্রিয়ভাবে ট্রানজেকশন আইডি ও নাম্বার যাচাই করে ইনস্ট্যান্ট ব্যালেন্স যোগ করবে।
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleAiAutoVerify}
-                    disabled={isAiVerifying}
-                    className="w-full py-3 bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-extrabold rounded-xl shadow-lg shadow-purple-600/30 flex items-center justify-center gap-2 active:scale-95 transition-all text-xs tracking-wide"
-                  >
-                    {isAiVerifying ? (
-                      <>
-                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>যাচাই করা হচ্ছে...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4 text-amber-300" />
-                        <span>🤖 AI দিয়ে ইনস্ট্যান্ট অটো ভেরিফাই ও এড মানি</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
-                  <span className="text-[10px] font-bold text-gray-400">অথবা</span>
-                  <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
-                </div>
-
-                <div className="bg-amber-50 dark:bg-amber-950/30 p-2.5 rounded-xl border border-amber-200/80 dark:border-amber-900/50 text-[11px] text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                  <span>সাধারণ সাবমিটে রিকোয়েস্টটি পেন্ডিং থাকে। এডমিন কনফার্ম করলে ব্যালেন্স যুক্ত হয়।</span>
+                <div className="bg-blue-50 dark:bg-blue-950/40 p-3 rounded-2xl border border-blue-200/80 dark:border-blue-900/50 text-xs text-blue-800 dark:text-blue-300 flex items-start gap-2">
+                  <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                  <span>
+                    <strong>১০০% নিরাপদ সিস্টেম:</strong> রিকোয়েস্ট সাবমিট করামাত্রই তা সুপার এডমিন প্যানেলে পৌঁছে যাবে। এডমিন TrxID কনফার্ম করার সাথে সাথে ওয়ালেটে টাকা যোগ হবে।
+                  </span>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-gray-200 hover:bg-gray-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-300 font-bold rounded-xl transition-all text-xs"
+                  disabled={isSubmitting}
+                  className="w-full py-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-extrabold rounded-2xl shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 active:scale-95 transition-all text-sm tracking-wide font-heading"
                 >
-                  সাধারণ পেন্ডিং রিকোয়েস্ট পাঠান (Manual)
+                  {isSubmitting ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>রিকোয়েস্ট পাঠানো হচ্ছে...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>এড মানি রিকোয়েস্ট সাবমিট করুন</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
                 </button>
               </form>
 

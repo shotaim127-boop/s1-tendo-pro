@@ -253,6 +253,94 @@ const notifyListeners = () => {
 };
 
 export const StorageService = {
+  // Sync state between client device and shared server database
+  async syncWithServer() {
+    try {
+      const res = await fetch('/api/sync');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!data || !data.success) return;
+
+      let changed = false;
+
+      // Update transactions
+      if (Array.isArray(data.transactions)) {
+        const localRaw = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+        const localTxs: Transaction[] = localRaw ? JSON.parse(localRaw) : [];
+
+        // Check for any local pending transactions not on server, push them to server!
+        const serverIds = new Set(data.transactions.map((t: any) => t.id));
+        const missingOnServer = localTxs.filter(t => !serverIds.has(t.id) && t.status === 'pending');
+
+        for (const missing of missingOnServer) {
+          if (missing.type === 'add_money') {
+            fetch('/api/transactions/request-add-money', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                user: { id: missing.userId, email: missing.userEmail, name: missing.userName },
+                method: missing.method || 'bKash',
+                senderNumber: missing.senderNumber,
+                trxId: missing.trxId,
+                amount: missing.amount,
+              }),
+            }).catch(() => {});
+          } else if (missing.type === 'withdraw') {
+            fetch('/api/transactions/request-withdraw', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                user: { id: missing.userId, email: missing.userEmail, name: missing.userName },
+                method: missing.method || 'bKash',
+                receiverNumber: missing.receiverNumber,
+                amount: missing.amount,
+              }),
+            }).catch(() => {});
+          }
+        }
+
+        // Merge missing pending items with server transactions so UI doesn't flicker
+        const mergedTransactions = [...missingOnServer, ...data.transactions];
+        localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(mergedTransactions));
+        changed = true;
+      }
+
+      // Update tournaments
+      if (Array.isArray(data.tournaments) && data.tournaments.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.TOURNAMENTS, JSON.stringify(data.tournaments));
+        changed = true;
+      }
+
+      // Update users
+      if (Array.isArray(data.users)) {
+        localStorage.setItem(STORAGE_KEYS.USERS_DB, JSON.stringify(data.users));
+        const current = this.getCurrentUser();
+        if (current) {
+          const freshUser = data.users.find((u: any) => u.email?.toLowerCase() === current.email?.toLowerCase());
+          if (freshUser && (freshUser.balance !== current.balance || freshUser.matchesJoined !== current.matchesJoined)) {
+            const updatedCurrent = { ...current, ...freshUser };
+            localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedCurrent));
+          }
+        }
+        changed = true;
+      }
+
+      // Update config
+      if (data.config && Object.keys(data.config).length > 0) {
+        const currentCfg = this.getConfig();
+        const mergedCfg = { ...currentCfg, ...data.config };
+        localStorage.setItem(STORAGE_KEYS.APP_CONFIG, JSON.stringify(mergedCfg));
+        changed = true;
+      }
+
+      if (changed) {
+        notifyListeners();
+      }
+    } catch {
+      // offline fallback
+    }
+  },
+
   // App Config
   getConfig(): AppConfig {
     const raw = localStorage.getItem(STORAGE_KEYS.APP_CONFIG);
@@ -272,6 +360,13 @@ export const StorageService = {
     const updated = { ...current, ...config };
     localStorage.setItem(STORAGE_KEYS.APP_CONFIG, JSON.stringify(updated));
     notifyListeners();
+
+    fetch('/api/config/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ configUpdate: config }),
+    }).catch(() => {});
+
     return updated;
   },
 
@@ -321,6 +416,14 @@ export const StorageService = {
       localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
     }
     notifyListeners();
+
+    // Persist to central server database
+    fetch('/api/users/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user }),
+    }).catch(() => {});
+
     return user;
   },
 
@@ -421,6 +524,14 @@ export const StorageService = {
     }
     localStorage.setItem(STORAGE_KEYS.TOURNAMENTS, JSON.stringify(tournaments));
     notifyListeners();
+
+    // Persist to central server database
+    fetch('/api/tournaments/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tournament }),
+    }).catch(() => {});
+
     return tournament;
   },
 
@@ -428,6 +539,13 @@ export const StorageService = {
     const tournaments = this.getTournaments().filter(t => t.id !== tournamentId);
     localStorage.setItem(STORAGE_KEYS.TOURNAMENTS, JSON.stringify(tournaments));
     notifyListeners();
+
+    // Persist to central server database
+    fetch('/api/tournaments/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tournamentId }),
+    }).catch(() => {});
   },
 
   // Join Tournament with single-email restriction & balance deduction
@@ -564,6 +682,16 @@ export const StorageService = {
     all.unshift(newTx);
     localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(all));
     notifyListeners();
+
+    // Persist to central server database if not add_money or withdraw (which have dedicated endpoints)
+    if (newTx.type !== 'add_money' && newTx.type !== 'withdraw') {
+      fetch('/api/transactions/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transaction: newTx }),
+      }).catch(() => {});
+    }
+
     return newTx;
   },
 
@@ -575,7 +703,7 @@ export const StorageService = {
     trxId: string;
     amount: number;
   }): Transaction {
-    return this.createTransaction({
+    const localTx = this.createTransaction({
       userId: params.user.id,
       userEmail: params.user.email,
       userName: params.user.name,
@@ -584,9 +712,23 @@ export const StorageService = {
       status: 'pending',
       method: params.method,
       senderNumber: params.senderNumber,
-      trxId: params.trxId,
+      trxId: params.trxId.toUpperCase().trim(),
       note: 'এডমিন ভেরিফিকেশনের অপেক্ষায়',
     });
+
+    // Send to central server database immediately
+    fetch('/api/transactions/request-add-money', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+      .then(res => res.json())
+      .then(() => {
+        this.syncWithServer();
+      })
+      .catch(() => {});
+
+    return localTx;
   },
 
   // AI Auto Verify and Instant Add Money
@@ -670,6 +812,15 @@ export const StorageService = {
       note: 'এডমিন কর্তৃক প্রসেসিং হচ্ছে',
     });
 
+    // Send to central server
+    fetch('/api/transactions/request-withdraw', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    })
+      .then(() => this.syncWithServer())
+      .catch(() => {});
+
     return { success: true, message: 'উইথড্র রিকোয়েস্ট জমা হয়েছে। এডমিন কনফার্ম করলে টাকা পেয়ে যাবেন।', transaction: tx };
   },
 
@@ -690,6 +841,15 @@ export const StorageService = {
       this.saveUser(user);
     }
     notifyListeners();
+
+    fetch('/api/transactions/approve-add-money', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactionId }),
+    })
+      .then(() => this.syncWithServer())
+      .catch(() => {});
+
     return true;
   },
 
@@ -702,6 +862,15 @@ export const StorageService = {
     tx.adminNote = reason || 'ভুল TrxID বা টাকা পাওয়া যায়নি';
     localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(all));
     notifyListeners();
+
+    fetch('/api/transactions/reject-add-money', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactionId, reason }),
+    })
+      .then(() => this.syncWithServer())
+      .catch(() => {});
+
     return true;
   },
 
@@ -715,6 +884,15 @@ export const StorageService = {
     tx.adminNote = 'টাকা সফলভাবে বিকাশ/নগদে পাঠানো হয়েছে';
     localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(all));
     notifyListeners();
+
+    fetch('/api/transactions/approve-withdraw', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactionId }),
+    })
+      .then(() => this.syncWithServer())
+      .catch(() => {});
+
     return true;
   },
 
@@ -734,6 +912,15 @@ export const StorageService = {
       this.saveUser(user);
     }
     notifyListeners();
+
+    fetch('/api/transactions/reject-withdraw', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transactionId, reason }),
+    })
+      .then(() => this.syncWithServer())
+      .catch(() => {});
+
     return true;
   },
 

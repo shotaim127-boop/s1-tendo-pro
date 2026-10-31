@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, LayoutDashboard, CreditCard, Banknote, Trophy, Users, Settings, 
@@ -52,6 +52,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      StorageService.syncWithServer();
+    }
+  }, [isOpen, activeTab]);
 
   // Settings form states
   const [appName, setAppName] = useState(config.appName);
@@ -813,7 +819,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           {/* TAB 2: ADD MONEY REQUESTS (পেমেন্ট রিকোয়েস্ট এক্সেপ্ট/রিজেক্ট) */}
           {activeTab === 'add_money' && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <div>
                   <h3 className="text-sm font-bold text-white">
                     এড মানি রিকোয়েস্ট তালিকা ({pendingAddMoney.length} টি পেন্ডিং)
@@ -822,6 +828,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     ইউজারের TrxID যাচাই করে কনফার্ম করুন। কনফার্ম করার সাথে সাথে ইউজারের ওয়ালেটে ব্যালেন্স যুক্ত হবে।
                   </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    StorageService.syncWithServer();
+                    showToast('সার্ভার থেকে রিয়েল-টাইম রিকোয়েস্ট সিঙ্ক করা হয়েছে!');
+                  }}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-gray-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95 shrink-0"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>সিঙ্ক / রিফ্রেশ</span>
+                </button>
               </div>
 
               {pendingAddMoney.length === 0 ? (

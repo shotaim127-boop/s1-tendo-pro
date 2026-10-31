@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type } from '@google/genai';
+import fs from 'fs';
 
 dotenv.config();
 
@@ -367,6 +368,281 @@ For CREATE_TOURNAMENT, include full tournamentData with realistic Free Fire espo
     const fallback = generateFallbackAiResponse(req.body?.prompt || '', req.body?.currentContext);
     return res.json(fallback);
   }
+});
+
+// Shared Server Database File Storage
+const DB_FILE = path.resolve(__dirname, 'server_db.json');
+
+function getDb(): {
+  tournaments: any[];
+  transactions: any[];
+  users: any[];
+  config: any;
+} {
+  try {
+    if (fs.existsSync(DB_FILE)) {
+      const raw = fs.readFileSync(DB_FILE, 'utf-8');
+      return JSON.parse(raw);
+    }
+  } catch (e) {
+    console.error('Error reading server_db.json:', e);
+  }
+  return { tournaments: [], transactions: [], users: [], config: {} };
+}
+
+function saveDb(data: any) {
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (e) {
+    console.error('Error writing server_db.json:', e);
+  }
+}
+
+// 1. Full state sync endpoint for all mobile devices & admin
+app.get('/api/sync', (_req, res) => {
+  const db = getDb();
+  res.json({
+    success: true,
+    tournaments: db.tournaments || [],
+    transactions: db.transactions || [],
+    users: db.users || [],
+    config: db.config || {},
+  });
+});
+
+// 2. Add Money request from any user device
+app.post('/api/transactions/request-add-money', (req, res) => {
+  const { user, method, senderNumber, trxId, amount } = req.body;
+  if (!user || !trxId || !amount) {
+    return res.status(400).json({ success: false, error: 'Missing required parameters' });
+  }
+
+  const db = getDb();
+  const cleanTrx = String(trxId).toUpperCase().trim();
+  const newTx = {
+    id: `tx-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    userId: user.id || `u-${Date.now()}`,
+    userEmail: user.email || 'user@gmail.com',
+    userName: user.name || user.inGameName || 'Player',
+    type: 'add_money',
+    amount: Number(amount),
+    status: 'pending',
+    method: method || 'bKash',
+    senderNumber: senderNumber || '',
+    trxId: cleanTrx,
+    note: 'এডমিন ভেরিফিকেশনের অপেক্ষায়',
+    createdAt: new Date().toLocaleString('en-US', {
+      dateStyle: 'short',
+      timeStyle: 'medium',
+    }),
+  };
+
+  db.transactions = [newTx, ...(db.transactions || [])];
+
+  // Also ensure user exists in db.users
+  const userIdx = (db.users || []).findIndex((u: any) => u.email?.toLowerCase() === user.email?.toLowerCase());
+  if (userIdx >= 0) {
+    db.users[userIdx] = { ...db.users[userIdx], ...user };
+  } else {
+    db.users = [...(db.users || []), { ...user, balance: user.balance || 0 }];
+  }
+
+  saveDb(db);
+  return res.json({ success: true, transaction: newTx });
+});
+
+// 3. Withdraw request from any user device
+app.post('/api/transactions/request-withdraw', (req, res) => {
+  const { user, method, receiverNumber, amount } = req.body;
+  const db = getDb();
+  const amt = Number(amount);
+
+  // Deduct balance from user in server DB
+  const userIdx = (db.users || []).findIndex((u: any) => u.email?.toLowerCase() === user.email?.toLowerCase());
+  if (userIdx >= 0) {
+    if (db.users[userIdx].balance < amt) {
+      return res.status(400).json({ success: false, message: 'পর্যাপ্ত ওয়ালেট ব্যালেন্স নেই।' });
+    }
+    db.users[userIdx].balance -= amt;
+  }
+
+  const newTx = {
+    id: `tx-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    userId: user.id,
+    userEmail: user.email,
+    userName: user.name || user.inGameName || 'Player',
+    type: 'withdraw',
+    amount: amt,
+    status: 'pending',
+    method: method || 'bKash',
+    receiverNumber: receiverNumber || '',
+    note: 'এডমিন কর্তৃক প্রসেসিং হচ্ছে',
+    createdAt: new Date().toLocaleString('en-US', {
+      dateStyle: 'short',
+      timeStyle: 'medium',
+    }),
+  };
+
+  db.transactions = [newTx, ...(db.transactions || [])];
+  saveDb(db);
+  return res.json({ success: true, transaction: newTx });
+});
+
+// 4. Admin Approve Add Money
+app.post('/api/transactions/approve-add-money', (req, res) => {
+  const { transactionId } = req.body;
+  const db = getDb();
+  const tx = (db.transactions || []).find((t: any) => t.id === transactionId);
+  if (!tx || tx.type !== 'add_money') {
+    return res.status(404).json({ success: false, error: 'Transaction not found' });
+  }
+
+  tx.status = 'completed';
+  tx.adminNote = 'এডমিন কর্তৃক পেমেন্ট অনুমোদিত ও ব্যালেন্স যুক্ত হয়েছে';
+
+  // Credit user by ID or trimmed email
+  let user = (db.users || []).find((u: any) => 
+    (tx.userId && u.id === tx.userId) || 
+    (u.email && tx.userEmail && u.email.toLowerCase().trim() === tx.userEmail.toLowerCase().trim())
+  );
+  if (user) {
+    user.balance = (user.balance || 0) + tx.amount;
+  } else {
+    user = {
+      id: tx.userId || `u-${Date.now()}`,
+      name: tx.userName || 'Player',
+      email: tx.userEmail || '',
+      balance: tx.amount,
+      matchesJoined: 0,
+      totalWon: 0,
+      createdAt: new Date().toISOString(),
+      role: 'user',
+    };
+    db.users = [...(db.users || []), user];
+  }
+
+  saveDb(db);
+  return res.json({ success: true, transaction: tx, user });
+});
+
+// 5. Admin Reject Add Money
+app.post('/api/transactions/reject-add-money', (req, res) => {
+  const { transactionId, reason } = req.body;
+  const db = getDb();
+  const tx = (db.transactions || []).find((t: any) => t.id === transactionId);
+  if (!tx || tx.type !== 'add_money') {
+    return res.status(404).json({ success: false, error: 'Transaction not found' });
+  }
+
+  tx.status = 'rejected';
+  tx.adminNote = reason || 'ভুল TrxID বা টাকা পাওয়া যায়নি';
+
+  saveDb(db);
+  return res.json({ success: true, transaction: tx });
+});
+
+// 6. Admin Approve Withdraw
+app.post('/api/transactions/approve-withdraw', (req, res) => {
+  const { transactionId } = req.body;
+  const db = getDb();
+  const tx = (db.transactions || []).find((t: any) => t.id === transactionId);
+  if (!tx || tx.type !== 'withdraw') {
+    return res.status(404).json({ success: false, error: 'Transaction not found' });
+  }
+
+  tx.status = 'completed';
+  tx.adminNote = 'টাকা সফলভাবে বিকাশ/নগদে পাঠানো হয়েছে';
+
+  saveDb(db);
+  return res.json({ success: true, transaction: tx });
+});
+
+// 7. Admin Reject Withdraw (Refunds user)
+app.post('/api/transactions/reject-withdraw', (req, res) => {
+  const { transactionId, reason } = req.body;
+  const db = getDb();
+  const tx = (db.transactions || []).find((t: any) => t.id === transactionId);
+  if (!tx || tx.type !== 'withdraw') {
+    return res.status(404).json({ success: false, error: 'Transaction not found' });
+  }
+
+  tx.status = 'rejected';
+  tx.adminNote = reason || 'নাম্বার ভুল বা রিকোয়েস্ট বাতিল';
+
+  // Refund user balance
+  const user = (db.users || []).find((u: any) => u.email?.toLowerCase() === tx.userEmail?.toLowerCase());
+  if (user) {
+    user.balance = (user.balance || 0) + tx.amount;
+  }
+
+  saveDb(db);
+  return res.json({ success: true, transaction: tx });
+});
+
+// 7b. General Transaction Create / Sync
+app.post('/api/transactions/create', (req, res) => {
+  const { transaction } = req.body;
+  if (!transaction || !transaction.id) {
+    return res.status(400).json({ success: false, error: 'Invalid transaction' });
+  }
+  const db = getDb();
+  const existingIdx = (db.transactions || []).findIndex((t: any) => t.id === transaction.id);
+  if (existingIdx >= 0) {
+    db.transactions[existingIdx] = transaction;
+  } else {
+    db.transactions = [transaction, ...(db.transactions || [])];
+  }
+  saveDb(db);
+  return res.json({ success: true, transaction });
+});
+
+// 8. Tournaments save/delete
+app.post('/api/tournaments/save', (req, res) => {
+  const { tournament } = req.body;
+  if (!tournament || !tournament.id) {
+    return res.status(400).json({ success: false, error: 'Invalid tournament data' });
+  }
+  const db = getDb();
+  const idx = (db.tournaments || []).findIndex((t: any) => t.id === tournament.id);
+  if (idx >= 0) {
+    db.tournaments[idx] = tournament;
+  } else {
+    db.tournaments = [tournament, ...(db.tournaments || [])];
+  }
+  saveDb(db);
+  return res.json({ success: true, tournament });
+});
+
+app.post('/api/tournaments/delete', (req, res) => {
+  const { tournamentId } = req.body;
+  const db = getDb();
+  db.tournaments = (db.tournaments || []).filter((t: any) => t.id !== tournamentId);
+  saveDb(db);
+  return res.json({ success: true });
+});
+
+// 9. Config update
+app.post('/api/config/update', (req, res) => {
+  const { configUpdate } = req.body;
+  const db = getDb();
+  db.config = { ...db.config, ...configUpdate };
+  saveDb(db);
+  return res.json({ success: true, config: db.config });
+});
+
+// 10. User save
+app.post('/api/users/save', (req, res) => {
+  const { user } = req.body;
+  if (!user || !user.email) return res.status(400).json({ success: false });
+  const db = getDb();
+  const idx = (db.users || []).findIndex((u: any) => u.email?.toLowerCase() === user.email?.toLowerCase());
+  if (idx >= 0) {
+    db.users[idx] = { ...db.users[idx], ...user };
+  } else {
+    db.users = [...(db.users || []), user];
+  }
+  saveDb(db);
+  return res.json({ success: true, user });
 });
 
 // Mount Vite or serve static dist

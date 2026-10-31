@@ -56,8 +56,10 @@ export default function App() {
   const [adminGateOpen, setAdminGateOpen] = useState(false);
   const [adminPanelOpen, setAdminPanelOpen] = useState(false);
 
-  // Sync with storage updates
+  // Sync with storage updates & real-time server database polling
   useEffect(() => {
+    StorageService.syncWithServer();
+
     const unsubscribe = subscribeToStorage(() => {
       setConfig(StorageService.getConfig());
       setCurrentUser(StorageService.getCurrentUser());
@@ -66,8 +68,33 @@ export default function App() {
       setUsers(StorageService.getAllUsers());
       setDarkMode(StorageService.getDarkMode());
     });
-    return unsubscribe;
+
+    // 2.5s real-time live polling so all devices see Add Money, Withdraw, and Tournaments live
+    const interval = setInterval(() => {
+      StorageService.syncWithServer();
+    }, 2500);
+
+    const handleFocus = () => {
+      StorageService.syncWithServer();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+    };
   }, []);
+
+  // Sync on admin panel open
+  useEffect(() => {
+    if (adminPanelOpen) {
+      StorageService.syncWithServer();
+    }
+  }, [adminPanelOpen]);
 
   // Support stealth URL hash trigger: e.g. #admin
   useEffect(() => {
