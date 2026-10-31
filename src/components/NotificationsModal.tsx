@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { X, Bell, Megaphone, CheckCircle2, ShieldAlert, Sparkles, Clock } from 'lucide-react';
+import { X, Bell, Megaphone, CheckCircle2, ShieldAlert, Sparkles, Clock, Volume2, Check } from 'lucide-react';
 import { AppConfig } from '../types';
+import { BrowserNotificationService } from '../services/notificationService';
 
 interface NotificationsModalProps {
   isOpen: boolean;
@@ -10,7 +11,19 @@ interface NotificationsModalProps {
 }
 
 export const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, onClose, config }) => {
+  const [notifState, setNotifState] = useState<NotificationPermission | 'unsupported'>(
+    BrowserNotificationService.getPermissionState()
+  );
+  const [isActivating, setIsActivating] = useState(false);
+
   if (!isOpen) return null;
+
+  const handleEnablePushNotifications = async () => {
+    setIsActivating(true);
+    const success = await BrowserNotificationService.requestPermission();
+    setNotifState(BrowserNotificationService.getPermissionState());
+    setIsActivating(false);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
@@ -45,6 +58,56 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, 
 
         {/* Content */}
         <div className="p-5 overflow-y-auto space-y-4">
+          {/* 0. Browser Push Notification Card */}
+          <div className="p-4 bg-gradient-to-r from-indigo-900/40 via-purple-900/40 to-slate-900 rounded-2xl border border-indigo-500/30 text-white space-y-3 shadow-md">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Volume2 className="w-4 h-4 text-amber-300 animate-pulse" />
+                <span className="text-xs font-bold font-heading text-indigo-200">
+                  ব্রাউজার পুশ নোটিফিকেশন অ্যালার্ট
+                </span>
+              </div>
+              <span className={`text-[10px] font-bold font-mono px-2 py-0.5 rounded ${
+                notifState === 'granted' 
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                  : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+              }`}>
+                {notifState === 'granted' ? 'ACTIVE' : notifState === 'denied' ? 'BLOCKED' : 'OFF'}
+              </span>
+            </div>
+
+            <p className="text-xs text-gray-300 leading-relaxed">
+              ম্যাচ শুরুর রুম আইডি ও পাসওয়ার্ড প্রকাশ হলে, রেজাল্ট শিট আপলোড হলে এবং এড মানি কনফার্ম হলে সরাসরি ডিভাইসে অটো নোটিফিকেশন পাবেন।
+            </p>
+
+            {notifState === 'granted' ? (
+              <div className="flex items-center justify-between p-2.5 bg-emerald-950/60 border border-emerald-800/80 rounded-xl text-xs text-emerald-300 font-medium">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-400" />
+                  <span>ব্রাউজার নোটিফিকেশন চালু রয়েছে</span>
+                </div>
+                <button
+                  onClick={() => BrowserNotificationService.sendNotification({
+                    title: '🎮 রুম আইডি অ্যালার্ট টেস্ট!',
+                    body: 'আপনার ব্রাউজার নোটিফিকেশন সিস্টেম সফলভাবে কাজ করছে।',
+                  })}
+                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[10px] font-bold"
+                >
+                  টেস্ট অ্যালার্ট
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleEnablePushNotifications}
+                disabled={isActivating || notifState === 'unsupported'}
+                className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-95 font-heading"
+              >
+                <Bell className="w-4 h-4" />
+                <span>{isActivating ? 'অনুমতি নেওয়া হচ্ছে...' : '🔔 নোটিফিকেশন সুবিধা চালু করুন (Enable Alert)'}</span>
+              </button>
+            )}
+          </div>
+
           {/* 1. Main Live Notice */}
           <div className="p-4 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 dark:from-amber-950/40 rounded-2xl border border-amber-300 dark:border-amber-900/50 space-y-2">
             <div className="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-300 font-heading">
@@ -66,7 +129,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({ isOpen, 
               <span>রুম আইডি ও পাসওয়ার্ড নিয়মাবলী</span>
             </div>
             <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-              ম্যাচ শুরু হওয়ার ঠিক ১৫ মিনিট পূর্বে অ্যাপের **"My Matches"** সেクションে রুম আইডি ও পাসওয়ার্ড প্রকাশ করা হয়। শুধুমাত্র স্লট জয়েন করা খেলোয়াড়গণই দেখতে পারবেন।
+              ম্যাচ শুরু হওয়ার ঠিক ১৫ মিনিট পূর্বে অ্যাপের **"My Matches"** সেকশনে রুম আইডি ও পাসওয়ার্ড প্রকাশ করা হয়। শুধুমাত্র স্লট জয়েন করা খেলোয়াড়গণই দেখতে পারবেন।
             </p>
           </div>
 

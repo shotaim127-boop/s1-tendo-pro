@@ -33,6 +33,26 @@ if (process.env.GEMINI_API_KEY) {
 function generateFallbackAiResponse(prompt: string, context: any) {
   const p = prompt.toLowerCase();
   
+  // 0. Direct Add Money to User by Email Command (e.g. shotaim127@gmail.com এ ৫০০ টাকা এড করো)
+  const emailMatch = prompt.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+  if (emailMatch && (p.includes('টাকা') || p.includes('এড') || p.includes('add') || p.includes('পাঠা') || p.includes('সেন্ড') || p.includes('ক্যাশ') || p.includes('bal') || p.includes('ক্রেডিট') || p.includes('bdt') || p.includes('tk'))) {
+    const targetEmail = emailMatch[0].toLowerCase().trim();
+    const numbersInPrompt = prompt.match(/\d+/g);
+    let amount = 100;
+    if (numbersInPrompt && numbersInPrompt.length > 0) {
+      amount = parseInt(numbersInPrompt[0], 10);
+    }
+    return {
+      success: true,
+      data: {
+        message: `💰 ${targetEmail} অ্যাকাউন্টে ৳${amount} এড মানি ব্যালেন্স পাঠানোর প্রস্তুত। কনফার্ম করলেই ব্যালেন্স জমা হবে!`,
+        actionType: 'ADD_MONEY_TO_USER',
+        targetEmail,
+        amount,
+      },
+    };
+  }
+  
   // Feature toggles
   if (p.includes('রেফার') || p.includes('refer') || p.includes('referral')) {
     const isOff = p.includes('অফ') || p.includes('off') || p.includes('বন্ধ') || p.includes('disable');
@@ -308,7 +328,15 @@ For CREATE_TOURNAMENT, include full tournamentData with realistic Free Fire espo
             },
             actionType: {
               type: Type.STRING,
-              description: 'One of TOGGLE_FEATURE, UPDATE_CONFIG, CREATE_TOURNAMENT, UPDATE_NOTICE, ADD_RULE, GENERATE_ROOM, NONE.',
+              description: 'One of ADD_MONEY_TO_USER, TOGGLE_FEATURE, UPDATE_CONFIG, CREATE_TOURNAMENT, UPDATE_NOTICE, ADD_RULE, GENERATE_ROOM, NONE.',
+            },
+            targetEmail: {
+              type: Type.STRING,
+              description: 'Target user email address to add money to.',
+            },
+            amount: {
+              type: Type.NUMBER,
+              description: 'Amount in BDT to add.',
             },
             featureKey: {
               type: Type.STRING,
@@ -412,15 +440,19 @@ app.get('/api/sync', (_req, res) => {
 
 // 2. Add Money request from any user device
 app.post('/api/transactions/request-add-money', (req, res) => {
-  const { user, method, senderNumber, trxId, amount } = req.body;
+  const { id, user, method, senderNumber, trxId, amount } = req.body;
   if (!user || !trxId || !amount) {
     return res.status(400).json({ success: false, error: 'Missing required parameters' });
   }
 
   const db = getDb();
   const cleanTrx = String(trxId).toUpperCase().trim();
+  const txId = id || `tx-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+  const existingIndex = (db.transactions || []).findIndex((t: any) => t.id === txId || (t.trxId && t.trxId === cleanTrx && t.status === 'pending'));
+
   const newTx = {
-    id: `tx-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    id: txId,
     userId: user.id || `u-${Date.now()}`,
     userEmail: user.email || 'user@gmail.com',
     userName: user.name || user.inGameName || 'Player',
@@ -437,7 +469,11 @@ app.post('/api/transactions/request-add-money', (req, res) => {
     }),
   };
 
-  db.transactions = [newTx, ...(db.transactions || [])];
+  if (existingIndex >= 0) {
+    db.transactions[existingIndex] = { ...db.transactions[existingIndex], ...newTx };
+  } else {
+    db.transactions = [newTx, ...(db.transactions || [])];
+  }
 
   // Also ensure user exists in db.users
   const userIdx = (db.users || []).findIndex((u: any) => u.email?.toLowerCase() === user.email?.toLowerCase());
@@ -453,7 +489,7 @@ app.post('/api/transactions/request-add-money', (req, res) => {
 
 // 3. Withdraw request from any user device
 app.post('/api/transactions/request-withdraw', (req, res) => {
-  const { user, method, receiverNumber, amount } = req.body;
+  const { id, user, method, receiverNumber, amount } = req.body;
   const db = getDb();
   const amt = Number(amount);
 
@@ -466,8 +502,11 @@ app.post('/api/transactions/request-withdraw', (req, res) => {
     db.users[userIdx].balance -= amt;
   }
 
+  const txId = id || `tx-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const existingIndex = (db.transactions || []).findIndex((t: any) => t.id === txId);
+
   const newTx = {
-    id: `tx-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    id: txId,
     userId: user.id,
     userEmail: user.email,
     userName: user.name || user.inGameName || 'Player',
@@ -483,7 +522,12 @@ app.post('/api/transactions/request-withdraw', (req, res) => {
     }),
   };
 
-  db.transactions = [newTx, ...(db.transactions || [])];
+  if (existingIndex >= 0) {
+    db.transactions[existingIndex] = { ...db.transactions[existingIndex], ...newTx };
+  } else {
+    db.transactions = [newTx, ...(db.transactions || [])];
+  }
+
   saveDb(db);
   return res.json({ success: true, transaction: newTx });
 });

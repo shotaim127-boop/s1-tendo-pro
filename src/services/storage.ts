@@ -1,4 +1,5 @@
 import { AppConfig, Tournament, Transaction, UserAccount, MatchCategory, MatchWinner } from '../types';
+import { BrowserNotificationService } from './notificationService';
 
 const STORAGE_KEYS = {
   CURRENT_USER: 's1_tendo_current_user',
@@ -278,6 +279,7 @@ export const StorageService = {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
+                id: missing.id,
                 user: { id: missing.userId, email: missing.userEmail, name: missing.userName },
                 method: missing.method || 'bKash',
                 senderNumber: missing.senderNumber,
@@ -290,6 +292,7 @@ export const StorageService = {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
+                id: missing.id,
                 user: { id: missing.userId, email: missing.userEmail, name: missing.userName },
                 method: missing.method || 'bKash',
                 receiverNumber: missing.receiverNumber,
@@ -299,38 +302,56 @@ export const StorageService = {
           }
         }
 
-        // Merge missing pending items with server transactions so UI doesn't flicker
-        const mergedTransactions = [...missingOnServer, ...data.transactions];
-        localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(mergedTransactions));
-        changed = true;
+        // Merge server transactions with any local missing ones
+        const combined = [...data.transactions];
+        for (const m of missingOnServer) {
+          if (!combined.some((t: any) => t.id === m.id)) {
+            combined.unshift(m);
+          }
+        }
+
+        const prevStr = JSON.stringify(localTxs);
+        const nextStr = JSON.stringify(combined);
+        if (prevStr !== nextStr) {
+          localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, nextStr);
+          changed = true;
+        }
       }
 
       // Update tournaments
       if (Array.isArray(data.tournaments) && data.tournaments.length > 0) {
-        localStorage.setItem(STORAGE_KEYS.TOURNAMENTS, JSON.stringify(data.tournaments));
-        changed = true;
+        const localRaw = localStorage.getItem(STORAGE_KEYS.TOURNAMENTS);
+        if (localRaw !== JSON.stringify(data.tournaments)) {
+          localStorage.setItem(STORAGE_KEYS.TOURNAMENTS, JSON.stringify(data.tournaments));
+          changed = true;
+        }
       }
 
       // Update users
       if (Array.isArray(data.users)) {
-        localStorage.setItem(STORAGE_KEYS.USERS_DB, JSON.stringify(data.users));
-        const current = this.getCurrentUser();
-        if (current) {
-          const freshUser = data.users.find((u: any) => u.email?.toLowerCase() === current.email?.toLowerCase());
-          if (freshUser && (freshUser.balance !== current.balance || freshUser.matchesJoined !== current.matchesJoined)) {
-            const updatedCurrent = { ...current, ...freshUser };
-            localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedCurrent));
+        const localRaw = localStorage.getItem(STORAGE_KEYS.USERS_DB);
+        if (localRaw !== JSON.stringify(data.users)) {
+          localStorage.setItem(STORAGE_KEYS.USERS_DB, JSON.stringify(data.users));
+          const current = this.getCurrentUser();
+          if (current) {
+            const freshUser = data.users.find((u: any) => u.email?.toLowerCase() === current.email?.toLowerCase());
+            if (freshUser && (freshUser.balance !== current.balance || freshUser.matchesJoined !== current.matchesJoined || freshUser.role !== current.role)) {
+              const updatedCurrent = { ...current, ...freshUser };
+              localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(updatedCurrent));
+            }
           }
+          changed = true;
         }
-        changed = true;
       }
 
       // Update config
       if (data.config && Object.keys(data.config).length > 0) {
         const currentCfg = this.getConfig();
         const mergedCfg = { ...currentCfg, ...data.config };
-        localStorage.setItem(STORAGE_KEYS.APP_CONFIG, JSON.stringify(mergedCfg));
-        changed = true;
+        if (JSON.stringify(currentCfg) !== JSON.stringify(mergedCfg)) {
+          localStorage.setItem(STORAGE_KEYS.APP_CONFIG, JSON.stringify(mergedCfg));
+          changed = true;
+        }
       }
 
       if (changed) {
@@ -449,6 +470,15 @@ export const StorageService = {
     notifyListeners();
   },
 
+  // Official Admin Accounts (Strictly max 2 Super Admins)
+  ADMIN_EMAILS: ['shotaim127@gmail.com', 'admin@s1tendopro.com'],
+
+  isAdminEmail(email: string): boolean {
+    if (!email) return false;
+    const clean = email.toLowerCase().trim();
+    return this.ADMIN_EMAILS.some(e => e.toLowerCase() === clean);
+  },
+
   // Login or Register: Restores user balance and full history if same email
   loginOrRegister(payload: {
     email: string;
@@ -461,6 +491,8 @@ export const StorageService = {
     const cleanEmail = payload.email.toLowerCase().trim();
     const existing = this.findUserByEmail(cleanEmail);
 
+    const isAdmin = this.isAdminEmail(cleanEmail);
+
     if (existing) {
       // Restore previous user and update any non-empty fields
       const updated: UserAccount = {
@@ -469,13 +501,14 @@ export const StorageService = {
         phone: payload.phone || existing.phone,
         ffUid: payload.ffUid || existing.ffUid,
         inGameName: payload.inGameName || existing.inGameName,
+        role: existing.role === 'admin' || isAdmin ? 'admin' : 'user',
       };
       this.saveUser(updated);
       this.setCurrentUser(updated);
       return { user: updated, isRestored: true };
     }
 
-    // New user creation
+    // New user creation (Role is 'user' for normal players, 'admin' ONLY for official admin emails)
     const newUser: UserAccount = {
       id: `u-${Date.now()}`,
       name: payload.name || payload.email.split('@')[0],
@@ -488,12 +521,39 @@ export const StorageService = {
       matchesJoined: 0,
       avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanEmail}`,
       createdAt: new Date().toISOString().split('T')[0],
-      role: 'user',
+      role: isAdmin ? 'admin' : 'user',
     };
 
     this.saveUser(newUser);
     this.setCurrentUser(newUser);
     return { user: newUser, isRestored: false };
+  },
+
+  // Toggle or assign Admin Role (Max 2 Admins restriction)
+  toggleUserRole(userEmail: string): { success: boolean; message: string; updatedUser?: UserAccount } {
+    const users = this.getAllUsers();
+    const target = users.find(u => u.email.toLowerCase().trim() === userEmail.toLowerCase().trim());
+    if (!target) return { success: false, message: 'ইউজার পাওয়া যায়নি!' };
+
+    const currentAdmins = users.filter(u => u.role === 'admin');
+
+    if (target.role === 'admin') {
+      // Demote to regular user
+      if (currentAdmins.length <= 1) {
+        return { success: false, message: 'সিস্টেমে অন্তত ১ জন এডমিন থাকতে হবে।' };
+      }
+      target.role = 'user';
+      this.saveUser(target);
+      return { success: true, message: `${target.name} এখন সাধারণ প্লেয়ার (User) হিসেবে সেট করা হয়েছে।`, updatedUser: target };
+    } else {
+      // Promote to admin if admins count < 2
+      if (currentAdmins.length >= 2) {
+        return { success: false, message: 'সিস্টেমে সর্বোচ্চ ২টি এডমিন একাউন্ট অনুমোদিত। নতুন এডমিন বানাতে পূর্বের কোনো এডমিনকে প্লেয়ার রোলে রিমুভ করুন।' };
+      }
+      target.role = 'admin';
+      this.saveUser(target);
+      return { success: true, message: `${target.name} সফলভাবে নতুন এডমিন হিসেবে নিযুক্ত হয়েছেন! (মোট এডমিন: ${currentAdmins.length + 1}/2)`, updatedUser: target };
+    }
   },
 
   logout() {
@@ -683,14 +743,12 @@ export const StorageService = {
     localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(all));
     notifyListeners();
 
-    // Persist to central server database if not add_money or withdraw (which have dedicated endpoints)
-    if (newTx.type !== 'add_money' && newTx.type !== 'withdraw') {
-      fetch('/api/transactions/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transaction: newTx }),
-      }).catch(() => {});
-    }
+    // Persist to central server database
+    fetch('/api/transactions/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transaction: newTx }),
+    }).catch(() => {});
 
     return newTx;
   },
@@ -720,7 +778,14 @@ export const StorageService = {
     fetch('/api/transactions/request-add-money', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: JSON.stringify({
+        id: localTx.id,
+        user: params.user,
+        method: params.method,
+        senderNumber: params.senderNumber,
+        trxId: params.trxId,
+        amount: params.amount,
+      }),
     })
       .then(res => res.json())
       .then(() => {
@@ -816,7 +881,13 @@ export const StorageService = {
     fetch('/api/transactions/request-withdraw', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
+      body: JSON.stringify({
+        id: tx.id,
+        user: params.user,
+        method: params.method,
+        receiverNumber: params.receiverNumber,
+        amount: params.amount,
+      }),
     })
       .then(() => this.syncWithServer())
       .catch(() => {});
@@ -842,6 +913,9 @@ export const StorageService = {
     }
     notifyListeners();
 
+    // Trigger Browser Notification
+    BrowserNotificationService.notifyAddMoneyStatus('approved', tx.amount);
+
     fetch('/api/transactions/approve-add-money', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -862,6 +936,9 @@ export const StorageService = {
     tx.adminNote = reason || 'ভুল TrxID বা টাকা পাওয়া যায়নি';
     localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(all));
     notifyListeners();
+
+    // Trigger Browser Notification
+    BrowserNotificationService.notifyAddMoneyStatus('rejected', tx.amount, reason);
 
     fetch('/api/transactions/reject-add-money', {
       method: 'POST',
@@ -884,6 +961,9 @@ export const StorageService = {
     tx.adminNote = 'টাকা সফলভাবে বিকাশ/নগদে পাঠানো হয়েছে';
     localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(all));
     notifyListeners();
+
+    // Trigger Browser Notification
+    BrowserNotificationService.notifyWithdrawStatus('approved', tx.amount);
 
     fetch('/api/transactions/approve-withdraw', {
       method: 'POST',
@@ -912,6 +992,9 @@ export const StorageService = {
       this.saveUser(user);
     }
     notifyListeners();
+
+    // Trigger Browser Notification
+    BrowserNotificationService.notifyWithdrawStatus('rejected', tx.amount, reason);
 
     fetch('/api/transactions/reject-withdraw', {
       method: 'POST',
@@ -957,6 +1040,9 @@ export const StorageService = {
         });
       });
       localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(allNotifs));
+
+      // Trigger Browser Push Notification API
+      BrowserNotificationService.notifyMatchRoomPublished(tournament.title, params.roomId, params.roomPassword);
     }
 
     notifyListeners();
@@ -1009,6 +1095,14 @@ export const StorageService = {
         });
       }
     });
+
+    // Trigger Browser Notification for match results
+    const topWinner = winners.find(w => w.rank === 1);
+    BrowserNotificationService.notifyMatchResultsPosted(
+      tournament.title,
+      topWinner?.inGameName || topWinner?.userName,
+      topWinner?.prizeWon
+    );
 
     notifyListeners();
     return true;

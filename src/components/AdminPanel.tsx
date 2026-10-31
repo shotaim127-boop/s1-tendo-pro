@@ -25,7 +25,7 @@ export interface AiChatMessage {
   sender: 'user' | 'ai';
   text: string;
   action?: {
-    actionType: 'CREATE_TOURNAMENT' | 'UPDATE_NOTICE' | 'ADD_RULE' | 'GENERATE_ROOM' | 'TOGGLE_FEATURE' | 'UPDATE_CONFIG' | 'NONE';
+    actionType: 'CREATE_TOURNAMENT' | 'UPDATE_NOTICE' | 'ADD_RULE' | 'GENERATE_ROOM' | 'TOGGLE_FEATURE' | 'UPDATE_CONFIG' | 'ADD_MONEY_TO_USER' | 'NONE';
     tournamentData?: any;
     noticeText?: string;
     ruleText?: string;
@@ -35,6 +35,8 @@ export interface AiChatMessage {
     featureEnabled?: boolean;
     featureData?: any;
     configUpdate?: any;
+    targetEmail?: string;
+    amount?: number;
   };
   applied?: boolean;
   timestamp: string;
@@ -219,6 +221,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       if (msg.action.configUpdate.noticeText) setNoticeText(msg.action.configUpdate.noticeText);
       showToast('⚙️ অ্যাপের কনফিগারেশন সফলভাবে আপডেট করা হয়েছে!');
       setAiMessages(prev => prev.map(m => m.id === msg.id ? { ...m, applied: true } : m));
+    } else if ((actionType === 'ADD_MONEY_TO_USER' || (msg.action as any).targetEmail) && ((msg.action as any).targetEmail)) {
+      const targetEmail = (msg.action as any).targetEmail;
+      const amt = Number((msg.action as any).amount || 100);
+      const success = StorageService.adminAdjustBalance(targetEmail, amt, '🤖 AI অটো এড মানি ক্রেডিট');
+      if (success) {
+        try {
+          confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 } });
+        } catch {}
+        showToast(`💰 ${targetEmail} ইউজারের ওয়ালেটে ৳${amt} টাকা জমা হয়েছে!`);
+        setAiMessages(prev => prev.map(m => m.id === msg.id ? { ...m, applied: true } : m));
+        StorageService.syncWithServer();
+      } else {
+        showToast(`❌ ${targetEmail} ইমেইল দিয়ে কোনো অ্যাকাউন্ট পাওয়া যায়নি!`);
+      }
     }
   };
 
@@ -1143,51 +1159,101 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </div>
               </div>
 
+              {/* Admin Limit Info Banner */}
+              <div className="p-3 bg-gradient-to-r from-amber-950/40 via-purple-950/40 to-slate-900 border border-amber-500/30 rounded-2xl flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">👑</span>
+                  <div>
+                    <span className="font-bold text-amber-300 block">
+                      সিস্টেম এডমিন অ্যাকাউন্টস (সর্বোচ্চ ২ জন)
+                    </span>
+                    <span className="text-[10px] text-gray-300">
+                      মোট রেজিস্টার্ড প্লেয়ার: {users.length} | সক্রিয় এডমিন: {users.filter(u => u.role === 'admin').length}/2
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 px-2 py-1 rounded-lg border border-amber-500/30">
+                  {users.filter(u => u.role === 'admin').length} / 2 ADMINS
+                </span>
+              </div>
+
               {/* Users Table / List */}
               <div className="space-y-2">
-                {filteredUsers.map(u => (
-                  <div
-                    key={u.id}
-                    className="p-3 bg-slate-800/60 rounded-2xl border border-slate-700 flex items-center justify-between gap-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-900 border border-slate-700 shrink-0">
-                        <img src={u.avatarUrl} alt={u.name} className="w-full h-full object-cover" />
+                {filteredUsers.map(u => {
+                  const isAdmin = u.role === 'admin';
+                  return (
+                    <div
+                      key={u.id}
+                      className={`p-3 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all ${
+                        isAdmin 
+                          ? 'bg-gradient-to-r from-amber-950/30 to-slate-900 border-amber-500/40' 
+                          : 'bg-slate-800/60 border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-900 border border-slate-700 shrink-0">
+                          <img src={u.avatarUrl} alt={u.name} className="w-full h-full object-cover" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-bold text-xs text-white">
+                              {u.inGameName || u.name}
+                            </h4>
+                            <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-md flex items-center gap-1 ${
+                              isAdmin
+                                ? 'bg-amber-500 text-slate-950 font-mono shadow-xs'
+                                : 'bg-slate-700 text-gray-300'
+                            }`}>
+                              {isAdmin ? '👑 SUPER ADMIN' : '🎮 PLAYER'}
+                            </span>
+                            <span className="text-[10px] text-gray-400 font-mono">
+                              UID: {u.ffUid || 'N/A'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-gray-300 font-mono">
+                            {u.email} • {u.phone || 'No phone'}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-bold text-xs text-white">
-                            {u.inGameName || u.name}
-                          </h4>
-                          <span className="text-[10px] text-gray-400 font-mono">
-                            UID: {u.ffUid || 'N/A'}
+
+                      <div className="flex items-center gap-2 self-end sm:self-auto">
+                        <div className="text-right mr-2">
+                          <span className="font-mono font-extrabold text-sm text-emerald-400 block">
+                            ৳{u.balance}
+                          </span>
+                          <span className="text-[10px] text-gray-400 block">
+                            জিতেছেন: ৳{u.totalWon || 0}
                           </span>
                         </div>
-                        <p className="text-[11px] text-gray-300 font-mono">
-                          {u.email} • {u.phone || 'No phone'}
-                        </p>
+
+                        <button
+                          onClick={() => {
+                            const res = StorageService.toggleUserRole(u.email);
+                            showToast(res.message);
+                            if (res.success) {
+                              StorageService.syncWithServer();
+                            }
+                          }}
+                          className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition-all ${
+                            isAdmin 
+                              ? 'bg-amber-950/60 border-amber-500/50 text-amber-300 hover:bg-amber-900/60' 
+                              : 'bg-slate-700/80 border-slate-600 text-gray-300 hover:bg-slate-700'
+                          }`}
+                          title={isAdmin ? 'সাধারণ প্লেয়ার করুন' : 'এডমিন বানান (সর্বোচ্চ ২ জন)'}
+                        >
+                          {isAdmin ? 'এডমিন সরাুন' : 'এডমিন বানান'}
+                        </button>
+
+                        <button
+                          onClick={() => setSelectedUserForAudit(u)}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors"
+                        >
+                          হিস্ট্রি ও এডজাস্ট
+                        </button>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-3">
-                      <div className="text-right">
-                        <span className="font-mono font-extrabold text-sm text-emerald-400 block">
-                          ৳{u.balance}
-                        </span>
-                        <span className="text-[10px] text-gray-400 block">
-                          জিতেছেন: ৳{u.totalWon || 0}
-                        </span>
-                      </div>
-
-                      <button
-                        onClick={() => setSelectedUserForAudit(u)}
-                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors"
-                      >
-                        হিস্ট্রি ও এডজাস্ট
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1528,6 +1594,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
                     {[
                       {
+                        label: '💰 shotaim127@gmail.com এ ৳৫০০ এড',
+                        prompt: 'shotaim127@gmail.com এ ৫০০ টাকা এড করো',
+                      },
+                      {
+                        label: '💸 shotaim127@gmail.com এ ৳১০০০ এড',
+                        prompt: 'shotaim127@gmail.com কে ১০০০ টাকা পাঠায় দাও',
+                      },
+                      {
                         label: '🎁 রেফার অন করো',
                         prompt: 'এপে রেফার অন করো',
                       },
@@ -1856,6 +1930,47 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             >
                               <Zap className="w-4 h-4 text-amber-300" />
                               <span>⚡ এখনই আপডেট প্রয়োগ করুন (Apply Now)</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Render Interactive Add Money to User Card */}
+                      {msg.action && (msg.action.actionType === 'ADD_MONEY_TO_USER' || (msg.action as any).targetEmail) && (
+                        <div className="mt-2 p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/40 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold text-emerald-300 flex items-center gap-1.5">
+                              <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
+                              ইমেইল একাউন্টে সরাসরি টাকা পাঠানো
+                            </span>
+                            <span className="text-[10px] font-mono bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-bold">
+                              +৳{(msg.action as any).amount || 100} BDT
+                            </span>
+                          </div>
+
+                          <div className="p-2.5 bg-slate-950/80 rounded-lg border border-slate-800 flex items-center justify-between">
+                            <div>
+                              <span className="text-[10px] text-gray-400 block">প্রাপক ইমেইল</span>
+                              <span className="text-xs font-bold font-mono text-white block">{(msg.action as any).targetEmail}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-[10px] text-gray-400 block">টাকার পরিমাণ</span>
+                              <span className="text-sm font-black font-mono text-emerald-400">৳{(msg.action as any).amount || 100}</span>
+                            </div>
+                          </div>
+
+                          {msg.applied ? (
+                            <div className="w-full py-1.5 bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5">
+                              <CheckCheck className="w-4 h-4 text-emerald-400" />
+                              <span>ব্যালেন্স সফলভাবে পাঠায় দেওয়া হয়েছে!</span>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => executeAiAction(msg)}
+                              className="w-full py-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all"
+                            >
+                              <Zap className="w-4 h-4 text-amber-300" />
+                              <span>⚡ এখনই ৳{(msg.action as any).amount || 100} টাকা পাঠায় দাও (Apply Now)</span>
                             </button>
                           )}
                         </div>
