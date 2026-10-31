@@ -72,7 +72,7 @@ export const PlayScreen: React.FC<PlayScreenProps> = ({
       : [];
 
   return (
-    <div className="pb-24 pt-2 px-3 max-w-md mx-auto space-y-3.5">
+    <div className="pb-24 pt-2 px-3 w-full space-y-3.5">
       {/* If a category is selected, show category matches */}
       {selectedCategory !== null ? (
         <div className="space-y-3">

@@ -21,7 +21,7 @@ export const MyMatchesScreen: React.FC<MyMatchesScreenProps> = ({
 
   if (!currentUser) {
     return (
-      <div className="pb-24 pt-6 px-4 max-w-md mx-auto text-center space-y-4">
+      <div className="pb-24 pt-6 px-4 w-full text-center space-y-4">
         <div className="w-16 h-16 mx-auto rounded-3xl bg-blue-100 dark:bg-slate-800 flex items-center justify-center text-3xl">
           🎮
         </div>
@@ -58,7 +58,7 @@ export const MyMatchesScreen: React.FC<MyMatchesScreenProps> = ({
   };
 
   return (
-    <div className="pb-24 pt-2 px-3 max-w-md mx-auto space-y-3">
+    <div className="pb-24 pt-2 px-3 w-full space-y-3">
       {/* Title Header matching Screenshot 6 */}
       <div className="text-center py-2">
         <h2 className="text-xl font-extrabold text-gray-800 dark:text-gray-100 font-heading uppercase tracking-wider">

@@ -31,7 +31,7 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({ tournaments }) => 
   });
 
   return (
-    <div className="pb-24 pt-2 px-3 max-w-md mx-auto space-y-3">
+    <div className="pb-24 pt-2 px-3 w-full space-y-3">
       {/* Header matching Screenshot 4 */}
       <div className="text-center py-1">
         <h2 className="text-xl font-extrabold text-gray-800 dark:text-gray-100 font-heading tracking-wide">

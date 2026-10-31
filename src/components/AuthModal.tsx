@@ -73,28 +73,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, config, o
     }
   };
 
-  // Quick preset login helper for testing
-  const handleQuickDemoLogin = () => {
-    setEmail('shuvosaha99@gmail.com');
-    setPassword('123456');
-    setName('Shuvo Saha');
-    setPhone('01712345678');
-    setFfUid('2839481920');
-    setInGameName('shuvosaha99');
-    const { user } = StorageService.loginOrRegister({
-      email: 'shuvosaha99@gmail.com',
-      password: 'demo',
-      name: 'Shuvo Saha',
-      inGameName: 'shuvosaha99',
-      ffUid: '2839481920',
-      phone: '01712345678',
-    });
-    setNotice('Shuvo Saha (৳15) একাউন্টে সফলভাবে লগইন করা হয়েছে!');
-    setTimeout(() => {
-      onSuccess(user);
-      onClose();
-    }, 800);
-  };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
@@ -276,16 +255,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, config, o
             </button>
           </form>
 
-          {/* Demo Account Quick Switch */}
-          <div className="pt-3 border-t border-gray-100 dark:border-slate-800">
-            <button
-              type="button"
-              onClick={handleQuickDemoLogin}
-              className="w-full py-2 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-xs font-semibold text-gray-700 dark:text-gray-300 rounded-xl flex items-center justify-center gap-2 transition-colors"
-            >
-              <span>⚡ এক ক্লিকে ডেমো একাউন্ট (Shuvo Saha - ৳15) লগইন</span>
-            </button>
-          </div>
+
         </div>
       </motion.div>
     </div>

@@ -76,7 +76,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
   if (!currentUser) {
     return (
-      <div className="pb-24 pt-8 px-4 max-w-md mx-auto text-center space-y-4">
+      <div className="pb-24 pt-8 px-4 w-full text-center space-y-4">
         <div className="w-16 h-16 mx-auto rounded-3xl bg-blue-100 dark:bg-slate-800 flex items-center justify-center text-3xl">
           👤
         </div>
@@ -97,7 +97,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   }
 
   return (
-    <div className="pb-28 max-w-md mx-auto">
+    <div className="pb-28 w-full">
       {/* Top Gradient Card matching Screenshot 2 */}
       <div className="relative bg-gradient-to-b from-[#38b6ff] via-[#4682b4] to-[#2b5876] dark:from-slate-900 dark:via-indigo-950 dark:to-slate-900 text-white pt-8 pb-6 px-6 rounded-b-[2.5rem] shadow-lg">
         {/* User Avatar */}

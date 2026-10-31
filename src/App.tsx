@@ -98,9 +98,9 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-screen bg-gray-100 dark:bg-slate-950 text-gray-900 dark:text-gray-100 transition-colors flex justify-center selection:bg-indigo-500 selection:text-white`}>
-      {/* Mobile Shell Frame */}
-      <div className="w-full max-w-md min-h-screen bg-[#f8fafc] dark:bg-[#0c1017] shadow-2xl relative flex flex-col border-x border-gray-200/50 dark:border-slate-800/60 overflow-x-hidden">
+    <div className={`min-h-screen bg-gray-100 dark:bg-slate-950 text-gray-900 dark:text-gray-100 transition-colors w-full selection:bg-indigo-500 selection:text-white`}>
+      {/* Fullscreen Shell */}
+      <div className="w-full min-h-screen bg-[#f8fafc] dark:bg-[#0c1017] relative flex flex-col overflow-x-hidden">
         {/* Splash Loader Screen matching Screenshot 3 */}
         {showSplash ? (
           <SplashLoader

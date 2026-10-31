@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="bn" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>S1 TENDO PRO - Free Fire Tournament Esports</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Rajdhani:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Hind Siliguri', 'Inter', 'sans-serif'],
+            heading: ['Rajdhani', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Hind Siliguri', sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-100 dark:bg-slate-950 text-gray-900 dark:text-gray-100 min-h-screen flex justify-center" x-data="appData()">
+
+  <!-- Mobile Shell Frame -->
+  <div class="w-full max-w-md min-h-screen bg-[#f8fafc] dark:bg-[#0c1017] shadow-2xl relative flex flex-col border-x border-gray-200/50 dark:border-slate-800/60 overflow-x-hidden">
+    
+    <!-- HEADER -->
+    <header class="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 flex items-center justify-center text-white font-heading font-bold text-lg shadow-md shadow-indigo-500/30">
+          S1
+        </div>
+        <div>
+          <h1 class="font-heading font-extrabold text-base tracking-wide text-gray-900 dark:text-white flex items-center gap-1">
+            S1 TENDO PRO <span class="text-[10px] bg-indigo-500/10 text-indigo-500 px-1.5 py-0.5 rounded font-sans">PRO</span>
+          </h1>
+          <p class="text-[10px] text-gray-500 dark:text-gray-400">ESPORTS ARENA</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <!-- Dark Mode Toggle -->
+        <button @click="toggleDarkMode()" class="w-9 h-9 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-700 dark:text-amber-400 hover:bg-gray-200 transition-colors">
+          <span x-text="darkMode ? '☀️' : '🌙'" class="text-sm"></span>
+        </button>
+
+        <!-- Wallet Button -->
+        <button @click="openWallet()" class="flex items-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white font-heading font-bold text-xs px-3 py-2 rounded-xl shadow-md shadow-rose-600/30 transition-transform active:scale-95">
+          <span>৳ <span x-text="currentUser.balance"></span></span>
+        </button>
+
+        <!-- Admin Trigger Button -->
+        <button @click="adminGateOpen = true" class="w-9 h-9 rounded-xl bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-200" title="Admin Panel">
+          ⚙️
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 overflow-y-auto pb-24 p-3 space-y-3.5">
+
+      <!-- Telegram Support Banner -->
+      <div @click="alert('Telegram Support: @s1tendopro_support')" class="cursor-pointer relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-950 via-slate-900 to-emerald-900 text-white p-4 shadow-lg border border-emerald-500/20 group">
+        <div class="flex items-center justify-between relative z-10">
+          <div class="flex-1 pr-2">
+            <span class="inline-flex items-center gap-1 text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full border border-emerald-500/30 mb-1">
+              ✨ অফিশিয়াল হেল্পডেস্ক
+            </span>
+            <h3 class="font-heading font-extrabold text-base sm:text-lg tracking-wide text-emerald-300">
+              WELCOME TO JOIN OUR COMMUNITY
+            </h3>
+            <p class="text-xs text-gray-300 mt-1">আমাদের টেলিগ্রাম গ্রুপে যুক্ত হয়ে টুর্নামেন্ট আপডেট ও সাপোর্ট নিন।</p>
+            <div class="mt-2.5 inline-flex items-center gap-1 text-[11px] font-bold text-emerald-300 group-hover:translate-x-1 transition-transform">
+              <span>Click here for join Telegram</span> ➔
+            </div>
+          </div>
+          <div class="w-16 h-16 shrink-0 rounded-2xl bg-gradient-to-tr from-sky-400 to-blue-600 p-2 shadow-md flex items-center justify-center">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/8/82/Telegram_logo.svg" alt="Telegram" class="w-full h-full object-contain">
+          </div>
+        </div>
+      </div>
+
+      <!-- Notice Bar -->
+      <div class="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border border-amber-300 dark:border-amber-900/40 p-2.5 rounded-xl flex items-center gap-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
+        <span>📢 রুম আইডি ও পাসওয়ার্ড ম্যাচ শুরুর ১৫ মিনিট পূর্বে অ্যাপের My Matches সেকশনে পাওয়া যাবে।</span>
+      </div>
+
+      <!-- Category Mode Cards -->
+      <div>
+        <h3 class="font-heading font-extrabold text-sm mb-2 text-gray-800 dark:text-gray-200">FREE FIRE MODES</h3>
+        <div class="grid grid-cols-2 gap-2.5">
+          <template x-for="cat in categories" :key="cat.id">
+            <div @click="selectedCategory = cat.id" class="cursor-pointer bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-gray-100 dark:border-slate-800 shadow-xs hover:border-indigo-500 transition-all group">
+              <div class="h-28 relative overflow-hidden">
+                <img :src="cat.image" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                <span class="absolute top-2 left-2 text-[10px] font-bold bg-black/60 backdrop-blur-md text-amber-400 px-2 py-0.5 rounded-md border border-white/10">ESPORTS</span>
+              </div>
+              <div class="p-2.5">
+                <h4 class="font-bold text-xs text-gray-900 dark:text-white truncate" x-text="cat.title"></h4>
+                <p class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5" x-text="getMatchCount(cat.id) + ' matches found'"></p>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Tournaments List -->
+      <div class="mt-4">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-heading font-extrabold text-sm text-gray-800 dark:text-gray-200">ACTIVE TOURNAMENTS</h3>
+          <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400 cursor-pointer" @click="selectedCategory = null">View All</span>
+        </div>
+
+        <div class="space-y-3">
+          <template x-for="t in filteredTournaments" :key="t.id">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl p-3.5 border border-gray-100 dark:border-slate-800 shadow-sm space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400" x-text="t.category"></span>
+                <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400" x-text="t.schedule"></span>
+              </div>
+              <h4 class="font-bold text-sm text-gray-900 dark:text-white" x-text="t.title"></h4>
+              <div class="grid grid-cols-3 gap-2 bg-gray-50 dark:bg-slate-800/50 p-2.5 rounded-xl text-center">
+                <div>
+                  <p class="text-[10px] text-gray-400">Entry Fee</p>
+                  <p class="font-bold text-xs text-rose-500">৳ <span x-text="t.entryFee"></span></p>
+                </div>
+                <div>
+                  <p class="text-[10px] text-gray-400">Win Prize</p>
+                  <p class="font-bold text-xs text-amber-500">৳ <span x-text="t.winPrize"></span></p>
+                </div>
+                <div>
+                  <p class="text-[10px] text-gray-400">Per Kill</p>
+                  <p class="font-bold text-xs text-emerald-500">৳ <span x-text="t.perKillPrize"></span></p>
+                </div>
+              </div>
+              <button @click="joinTournament(t)" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md shadow-indigo-500/25 transition-transform active:scale-[0.99]">
+                জয়ন করুন (Join Match)
+              </button>
+            </div>
+          </template>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- BOTTOM NAVIGATION -->
+    <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-gray-100 dark:border-slate-800 h-16 flex items-center justify-around px-2">
+      <button @click="currentTab = 'play'" :class="currentTab === 'play' ? 'text-indigo-600 font-bold' : 'text-gray-400'" class="flex flex-col items-center text-xs">
+        <span>🎮</span> Play
+      </button>
+      <button @click="currentTab = 'my-matches'" :class="currentTab === 'my-matches' ? 'text-indigo-600 font-bold' : 'text-gray-400'" class="flex flex-col items-center text-xs">
+        <span>📋</span> My Matches
+      </button>
+      <button @click="currentTab = 'results'" :class="currentTab === 'results' ? 'text-indigo-600 font-bold' : 'text-gray-400'" class="flex flex-col items-center text-xs">
+        <span>🏆</span> Results
+      </button>
+      <button @click="currentTab = 'profile'" :class="currentTab === 'profile' ? 'text-indigo-600 font-bold' : 'text-gray-400'" class="flex flex-col items-center text-xs">
+        <span>👤</span> Profile
+      </button>
+    </nav>
+
+    <!-- ADMIN PANEL MODAL -->
+    <div x-show="adminPanelOpen" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" style="display: none;">
+      <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl p-5 max-h-[90vh] overflow-y-auto space-y-4">
+        <div class="flex items-center justify-between border-b pb-3 dark:border-slate-800">
+          <h2 class="font-heading font-extrabold text-lg text-indigo-600">⚙️ S1 TENDO ADMIN PANEL</h2>
+          <button @click="adminPanelOpen = false" class="text-gray-400 hover:text-white font-bold">✕</button>
+        </div>
+
+        <div class="space-y-4">
+          <div class="bg-indigo-50 dark:bg-indigo-950/40 p-3 rounded-2xl text-xs space-y-2">
+            <h4 class="font-bold text-indigo-700 dark:text-indigo-300">নতুন টুর্নামেন্ট তৈরি করুন</h4>
+            <input type="text" placeholder="টুর্নামেন্ট নাম" class="w-full p-2 bg-white dark:bg-slate-800 rounded-xl border text-xs" x-model="newT.title">
+            <div class="grid grid-cols-2 gap-2">
+              <input type="number" placeholder="Entry Fee" class="p-2 bg-white dark:bg-slate-800 rounded-xl border text-xs" x-model.number="newT.entryFee">
+              <input type="number" placeholder="Win Prize" class="p-2 bg-white dark:bg-slate-800 rounded-xl border text-xs" x-model.number="newT.winPrize">
+            </div>
+            <button @click="createTournament()" class="w-full py-2 bg-indigo-600 text-white font-bold rounded-xl text-xs">পাবলিশ করুন</button>
+          </div>
+
+          <div>
+            <h4 class="font-bold text-xs text-gray-400 mb-2">সকল টুর্নামেন্ট ম্যানেজমেন্ট (<span x-text="tournaments.length"></span>)</h4>
+            <div class="space-y-2">
+              <template x-for="t in tournaments" :key="t.id">
+                <div class="bg-gray-50 dark:bg-slate-800/60 p-3 rounded-2xl flex items-center justify-between text-xs">
+                  <div>
+                    <p class="font-bold text-gray-900 dark:text-white" x-text="t.title"></p>
+                    <p class="text-[10px] text-gray-400" x-text="'Fee: ৳' + t.entryFee + ' | Prize: ৳' + t.winPrize"></p>
+                  </div>
+                  <button @click="deleteTournament(t.id)" class="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-[10px]">ডিলিট</button>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADMIN SECURITY GATE -->
+    <div x-show="adminGateOpen" class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" style="display: none;">
+      <div class="bg-white dark:bg-slate-900 w-full max-w-xs rounded-3xl p-5 text-center space-y-3">
+        <h3 class="font-heading font-extrabold text-base">Admin Password Required</h3>
+        <input type="password" placeholder="Enter password (271030)" class="w-full p-2.5 bg-gray-100 dark:bg-slate-800 rounded-xl text-center text-sm font-mono" x-model="adminPassInput">
+        <button @click="verifyAdmin()" class="w-full py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-xs">লগইন করুন</button>
+        <button @click="adminGateOpen = false" class="text-xs text-gray-400">বাতিল</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function appData() {
+      return {
+        darkMode: true,
+        currentTab: 'play',
+        selectedCategory: null,
+        adminGateOpen: false,
+        adminPanelOpen: false,
+        adminPassInput: '',
+        currentUser: {
+          name: 'Shuvo Saha',
+          email: 'shuvo@gmail.com',
+          balance: 5495,
+          role: 'user'
+        },
+        categories: [
+          { id: 'BR MATCH', title: 'BR MATCH', image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=500&auto=format&fit=crop&q=80' },
+          { id: 'BR SURVIVAL', title: 'BR SURVIVAL', image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=500&auto=format&fit=crop&q=80' },
+          { id: 'Clash Squad', title: 'Clash Squad', image: 'https://images.unsplash.com/photo-1538481199705-c710c4e965fc?w=500&auto=format&fit=crop&q=80' },
+          { id: 'CS 2 VS 2', title: 'CS 2 VS 2', image: 'https://images.unsplash.com/photo-1579373903781-fd5c0c30c4cd?w=500&auto=format&fit=crop&q=80' },
+          { id: 'Lone Wolf 2v2', title: 'Lone Wolf 2v2', image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=500&auto=format&fit=crop&q=80' },
+          { id: 'Lone Wolf 1 Vs 1', title: 'Lone Wolf 1 Vs 1', image: 'https://images.unsplash.com/photo-1563089145-599997674d42?w=500&auto=format&fit=crop&q=80' }
+        ],
+        tournaments: [
+          { id: '1', title: 'Duo Time | Mobile | Regular', category: 'BR MATCH', entryFee: 10, winPrize: 405, perKillPrize: 5, schedule: 'আজ রাত ০৯:০০ PM' },
+          { id: '2', title: 'BR Solo Survival | Booyah Master', category: 'BR SURVIVAL', entryFee: 20, winPrize: 800, perKillPrize: 10, schedule: 'আজ রাত ১০:০০ PM' },
+          { id: '3', title: 'CS 6 VS 6 Pro Clash', category: 'Clash Squad', entryFee: 50, winPrize: 550, perKillPrize: 15, schedule: 'আজ রাত ০৮:৩০ PM' }
+        ],
+        newT: { title: '', entryFee: 10, winPrize: 100 },
+        toggleDarkMode() {
+          this.darkMode = !this.darkMode;
+          if(this.darkMode) document.documentElement.classList.add('dark');
+          else document.documentElement.classList.remove('dark');
+        },
+        getMatchCount(catId) {
+          return this.tournaments.filter(t => t.category === catId).length;
+        },
+        get filteredTournaments() {
+          if (!this.selectedCategory) return this.tournaments;
+          return this.tournaments.filter(t => t.category === this.selectedCategory);
+        },
+        verifyAdmin() {
+          if (this.adminPassInput === '271030' || this.adminPassInput === 'admin') {
+            this.adminGateOpen = false;
+            this.adminPanelOpen = true;
+            this.adminPassInput = '&#8203;';
+          } else {
+            alert('ভুল পাসওয়ার্ড!');
+          }
+        },
+        deleteTournament(id) {
+          this.tournaments = this.tournaments.filter(t => t.id !== id);
+        },
+        createTournament() {
+          if(!this.newT.title) return;
+          this.tournaments.push({
+            id: Date.now().toString(),
+            title: this.newT.title,
+            category: 'BR MATCH',
+            entryFee: this.newT.entryFee || 10,
+            winPrize: this.newT.winPrize || 100,
+            perKillPrize: 5,
+            schedule: 'আজ রাত ০৯:০০ PM'
+          });
+          this.newT.title = '';
+          alert('টুর্নামেন্ট সফলভাবে তৈরি হয়েছে!');
+        },
+        joinTournament(t) {
+          if (this.currentUser.balance < t.entryFee) {
+            alert('পর্যাপ্ত ব্যালেন্স নেই! দয়া করে ওয়ালেটে টাকা অ্যাড করুন।');
+            return;
+          }
+          this.currentUser.balance -= t.entryFee;
+          alert(t.title + ' টুর্নামেন্টে সফলভাবে জয়েন করেছেন!');
+        },
+        openWallet() {
+          alert('আপনার বর্তমান ওয়ালেট ব্যালেন্স: ৳' + this.currentUser.balance);
+        }
+      }
+    }
+  </script>
+</body>
+</html>

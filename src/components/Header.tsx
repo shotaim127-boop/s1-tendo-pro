@@ -58,7 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-gray-100 dark:border-slate-800 transition-colors shadow-xs">
-      <div className="max-w-md mx-auto px-4 h-15 flex items-center justify-between">
+      <div className="w-full px-4 h-15 flex items-center justify-between">
         {/* Left: App Logo & Title (Stealth Admin Gateway) */}
         <div 
           onClick={handleLogoTap}

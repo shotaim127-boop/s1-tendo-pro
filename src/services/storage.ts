@@ -41,22 +41,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   },
 };
 
-// Ensure localStorage gets updated with these new mode images if previously cached
-try {
-  const currentRaw = localStorage.getItem(STORAGE_KEYS.APP_CONFIG);
-  if (currentRaw) {
-    const parsed = JSON.parse(currentRaw);
-    parsed.categoryImages = {
-      'BR MATCH': '/assets/aistudio/images__19__98f14658.jpeg',
-      'BR SURVIVAL': '/assets/aistudio/images__18__5da4719f.jpeg',
-      'Clash Squad': '/assets/aistudio/images__12__5846dfdd.jpeg',
-      'CS 2 VS 2': '/assets/aistudio/images__17__017bcfde.jpeg',
-      'Lone Wolf 2v2': '/assets/aistudio/images__16__9f42e1c8.jpeg',
-      'Lone Wolf 1 Vs 1': '/assets/aistudio/images__20__f9123c83.jpeg',
-    };
-    localStorage.setItem(STORAGE_KEYS.APP_CONFIG, JSON.stringify(parsed));
-  }
-} catch {}
+
 
 // Default initial tournaments
 const INITIAL_TOURNAMENTS: Tournament[] = [
@@ -250,21 +235,7 @@ const INITIAL_TOURNAMENTS: Tournament[] = [
   },
 ];
 
-// Initial demo user (matching screenshot user shuvosaha99 with 15 BDT balance)
-const INITIAL_DEMO_USER: UserAccount = {
-  id: 'user-demo-shuvo',
-  name: 'Shuvo Saha',
-  email: 'shuvosaha99@gmail.com',
-  phone: '01712345678',
-  ffUid: '2839481920',
-  inGameName: 'shuvosaha99',
-  balance: 15, // Matches "BDT 15" from screenshot
-  totalWon: 105, // Matches "105 এখন পর্যন্ত জিতেছেন"
-  matchesJoined: 11, // Matches "11 ম্যাচ জয়েন করেছেন"
-  avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=shuvosaha99',
-  createdAt: '2026-06-15',
-  role: 'user',
-};
+
 
 // Listeners for live sync
 type StorageListener = () => void;
@@ -320,14 +291,12 @@ export const StorageService = {
   getAllUsers(): UserAccount[] {
     const raw = localStorage.getItem(STORAGE_KEYS.USERS_DB);
     if (!raw) {
-      const initialUsers = [INITIAL_DEMO_USER];
-      localStorage.setItem(STORAGE_KEYS.USERS_DB, JSON.stringify(initialUsers));
-      return initialUsers;
+      return [];
     }
     try {
       return JSON.parse(raw);
     } catch {
-      return [INITIAL_DEMO_USER];
+      return [];
     }
   },
 
@@ -359,9 +328,7 @@ export const StorageService = {
   getCurrentUser(): UserAccount | null {
     const raw = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
     if (!raw) {
-      // Default auto-login to demo user on first arrival for rich out-of-the-box experience
-      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(INITIAL_DEMO_USER));
-      return INITIAL_DEMO_USER;
+      return null;
     }
     try {
       return JSON.parse(raw);
